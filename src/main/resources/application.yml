@@ -17,3 +17,9 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+
+app:
+  jwt:
+    # 개발용. 실제 배포 때는 더 길고 랜덤한 값으로 바꾸기
+    secret: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET_CHANGE_ME_1234567890"
+    access-token-exp-minutes: 120
