@@ -20,6 +20,6 @@ logging:
 
 app:
   jwt:
-    # 개발용. 실제 배포 때는 더 길고 랜덤한 값으로 바꾸기
-    secret: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET_CHANGE_ME_1234567890"
+    # 운영 환경에서는 환경변수 JWT_SECRET을 반드시 설정하세요
+    secret: "${JWT_SECRET:CHANGE_ME_TO_A_LONG_RANDOM_SECRET_CHANGE_ME_1234567890}"
     access-token-exp-minutes: 120

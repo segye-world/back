@@ -5,6 +5,7 @@ import com.segye.category.Category;
 import com.segye.category.CategoryRepository;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
+import com.segye.schedule.ScheduleRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,17 +21,24 @@ public class AccountRecordService {
     private final AccountRecordRepository repo;
     private final MemberRepository memberRepo;
     private final CategoryRepository categoryRepo;
+    private final ScheduleRepository scheduleRepo;
 
-    public AccountRecordService(AccountRecordRepository repo, MemberRepository memberRepo, CategoryRepository categoryRepo) {
+    public AccountRecordService(AccountRecordRepository repo, MemberRepository memberRepo,
+                                CategoryRepository categoryRepo, ScheduleRepository scheduleRepo) {
         this.repo = repo;
         this.memberRepo = memberRepo;
         this.categoryRepo = categoryRepo;
+        this.scheduleRepo = scheduleRepo;
     }
 
     public AccountRecordDtos.AccountRecordResponse create(Long memberId, AccountRecordDtos.CreateRequest req) {
         Member member = memberRepo.findById(memberId).orElseThrow(() -> new SecurityException("회원이 없습니다."));
         Category category = categoryRepo.findById(req.categoryId()).orElseThrow(() -> new IllegalArgumentException("카테고리가 없습니다."));
 
+        if (req.scheduleId() != null) {
+            scheduleRepo.findByIdAndMember_Id(req.scheduleId(), memberId)
+                    .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
+        }
         AccountRecord saved = repo.save(new AccountRecord(member, category, req.amount(), req.transactionTime(), req.scheduleId()));
         return toDto(saved);
     }
