@@ -22,6 +22,9 @@ public class ScheduleService {
     }
 
     public ScheduleDtos.ScheduleResponse create(Long memberId, ScheduleDtos.CreateRequest req) {
+        if (req.startHour() >= req.endHour()) {
+            throw new IllegalArgumentException("시작 시간은 종료 시간보다 빨라야 합니다.");
+        }
         Member member = memberRepo.findById(memberId)
                 .orElseThrow(() -> new SecurityException("회원이 없습니다."));
         Schedule saved = repo.save(new Schedule(
@@ -37,6 +40,9 @@ public class ScheduleService {
     }
 
     public ScheduleDtos.ScheduleResponse update(Long memberId, Long id, ScheduleDtos.UpdateRequest req) {
+        if (req.startHour() >= req.endHour()) {
+            throw new IllegalArgumentException("시작 시간은 종료 시간보다 빨라야 합니다.");
+        }
         Schedule schedule = repo.findByIdAndMember_Id(id, memberId)
                 .orElseThrow(() -> new IllegalArgumentException("일정이 없습니다."));
         schedule.update(req.title(), req.startHour(), req.endHour(), req.colorHex());
