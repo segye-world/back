@@ -55,7 +55,7 @@ public class TodoController {
     public ApiResponse<TodoDtos.TodoResponse> update(
             Authentication auth,
             @PathVariable Long id,
-            @RequestBody TodoDtos.UpdateRequest req
+            @RequestBody @Valid TodoDtos.UpdateRequest req
     ) {
         return ApiResponse.ok(service.update(memberId(auth), id, req));
     }
