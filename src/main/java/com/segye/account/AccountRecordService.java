@@ -6,6 +6,7 @@ import com.segye.category.CategoryRepository;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ import java.time.YearMonth;
 import java.util.List;
 
 @Service
+@Transactional
 public class AccountRecordService {
 
     private final AccountRecordRepository repo;
@@ -33,6 +35,7 @@ public class AccountRecordService {
         return toDto(saved);
     }
 
+    @Transactional(readOnly = true)
     public List<AccountRecordDtos.AccountRecordResponse> listRange(Long memberId, LocalDate from, LocalDate to) {
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime endExclusive = to.plusDays(1).atStartOfDay();
@@ -41,6 +44,7 @@ public class AccountRecordService {
                 .stream().map(this::toDto).toList();
     }
 
+    @Transactional(readOnly = true)
     public List<AccountRecordDtos.AccountRecordResponse> listMonthly(Long memberId, int year, int month) {
         YearMonth ym = YearMonth.of(year, month);
         LocalDateTime start = ym.atDay(1).atStartOfDay();
