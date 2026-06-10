@@ -13,9 +13,6 @@ spring:
   h2:
     console:
       enabled: true
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
 
 logging:
   level:

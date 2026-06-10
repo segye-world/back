@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/h2-console/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll() // 카테고리는 공개(원하면 인증으로 바꿔도 됨)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .headers(h -> h.frameOptions(f -> f.disable())) // H2 console
