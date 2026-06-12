@@ -27,12 +27,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            Long memberId = tokenProvider.validateAndGetMemberId(token);
+            try {
+                Long memberId = tokenProvider.validateAndGetMemberId(token);
 
-            // principal에 memberId만 넣어도 MVP에는 충분
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(memberId, null, List.of());
-            SecurityContextHolder.getContext().setAuthentication(auth);
+                // principal에 memberId만 넣어도 MVP에는 충분
+                UsernamePasswordAuthenticationToken auth =
+                        new UsernamePasswordAuthenticationToken(memberId, null, List.of());
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            } catch (SecurityException e) {
+                // 무효 토큰은 미인증 상태로 통과시킨다.
+                // 보호된 엔드포인트는 뒤의 인가 단계에서 401로 거절되고, permitAll 경로는 정상 동작한다.
+                SecurityContextHolder.clearContext();
+            }
         }
 
         filterChain.doFilter(request, response);
