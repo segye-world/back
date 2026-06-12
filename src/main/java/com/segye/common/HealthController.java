@@ -1,4 +1,4 @@
-package com.example.back;
+package com.segye.common;
 
 import java.time.Instant;
 import java.util.Map;
