@@ -22,7 +22,9 @@ public class Member {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 255, unique = true)
+    // 유니크 제약은 위 @Table 의 idx_member_email 인덱스가 담당한다. @Column 에도 두면
+    // Hibernate 가 부팅마다 중복 제약을 정리하려 들어 WARN 이 찍힌다.
+    @Column(nullable = false, length = 255)
     private String email;
 
     @Column(nullable = false, length = 255)
