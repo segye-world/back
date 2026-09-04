@@ -13,6 +13,7 @@ import com.segye.todo.Todo;
 import com.segye.todo.TodoRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+// 목 데이터이므로 운영 DB에는 넣지 않습니다.
+@Profile("!prod")
 @Component
 public class DataInitializer implements ApplicationRunner {
 

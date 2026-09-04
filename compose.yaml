@@ -1,0 +1,24 @@
+# 로컬 개발용 PostgreSQL. `docker compose up -d` 로 띄우고,
+# application.yml 의 기본 접속 정보(localhost:5433 / segye / ssafy)와 맞춰져 있습니다.
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: segye-postgres
+    environment:
+      POSTGRES_DB: segye
+      POSTGRES_USER: ssafy
+      POSTGRES_PASSWORD: ssafy
+      TZ: Asia/Seoul
+    ports:
+      # 호스트 5432 는 다른 프로젝트(antenna-postgres)가 쓰고 있어 5433 으로 노출합니다.
+      - "5433:5432"
+    volumes:
+      # postgres 18+ 이미지는 /var/lib/postgresql 아래에 버전별 하위 디렉터리를 만들므로 여기에 마운트합니다.
+      - segye-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssafy -d segye"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  segye-pgdata:
