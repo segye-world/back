@@ -1,14 +1,12 @@
 package com.segye.config;
 
-import com.segye.auth.JwtProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+// JwtProperties는 SegyeApplication의 @EnableConfigurationProperties에서 등록한다.
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
 public class AppConfig {
 
     @Bean
