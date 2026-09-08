@@ -1,0 +1,18 @@
+# 테스트는 Testcontainers 가 띄운 PostgreSQL 을 씁니다.
+# 접속 정보는 PostgresTestSupport 의 @DynamicPropertySource 가 주입합니다.
+spring:
+  jpa:
+    # 운영과 동일하게 update 로 두어야 스키마 생성 자체가 검증 대상이 됩니다.
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: false
+app:
+  jwt:
+    secret: "TEST_ONLY_SECRET_THAT_IS_LONG_ENOUGH_FOR_HS256_0123456789"
+    access-token-exp-minutes: 10
+
+logging:
+  level:
+    org.hibernate.SQL: warn

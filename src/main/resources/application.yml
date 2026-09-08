@@ -1,18 +1,16 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:segye;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: ssafy
-    password: ssafy
+    # 로컬은 compose.yaml 의 컨테이너 기본값을 쓰고, 다른 환경은 환경변수로 덮어씁니다.
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/segye}
+    username: ${DB_USERNAME:ssafy}
+    password: ${DB_PASSWORD:ssafy}
   jpa:
     hibernate:
+      # 영속 DB에서는 update 가 스키마 드리프트를 만들 수 있어, Flyway 도입 후 validate 로 조일 예정입니다.
       ddl-auto: update
     properties:
       hibernate:
         format_sql: true
-  h2:
-    console:
-      enabled: true
   jackson:
     serialization:
       write-dates-as-timestamps: false
