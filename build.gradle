@@ -13,6 +13,8 @@ java {
     }
 }
 
+ext['testcontainers.version'] = '1.21.3'  // Docker Engine 29 는 API 1.44 미만을 거부한다. Boot 3.2.2 기본값(1.19.3)의 docker-java 로는 붙지 못한다.
+
 repositories {
     mavenCentral()
 }
@@ -30,8 +32,20 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    // 테스트도 운영과 같은 PostgreSQL 에서 돌려야 마이그레이션이 실제로 검증됩니다.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.named('test') {
+    // docker-java 의 기본 Docker API 버전은 1.32 인데, Docker Engine 25+ 는 1.40 미만을 거부한다.
+    // Testcontainers 가 데몬에 붙지 못하고 400 을 받는 문제를 막기 위해 명시적으로 올려 준다.
+    // docker-java 는 DOCKER_API_VERSION 환경변수가 아니라 api.version 시스템 프로퍼티를 읽는다.
+    systemProperty 'api.version', System.getenv('DOCKER_API_VERSION') ?: '1.44'
 }
