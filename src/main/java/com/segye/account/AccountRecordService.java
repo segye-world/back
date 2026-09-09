@@ -5,6 +5,8 @@ import com.segye.category.Category;
 import com.segye.category.CategoryRepository;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
+import com.segye.paymentmethod.PaymentMethod;
+import com.segye.paymentmethod.PaymentMethodRepository;
 import com.segye.schedule.ScheduleRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +24,16 @@ public class AccountRecordService {
     private final MemberRepository memberRepo;
     private final CategoryRepository categoryRepo;
     private final ScheduleRepository scheduleRepo;
+    private final PaymentMethodRepository paymentMethodRepo;
 
     public AccountRecordService(AccountRecordRepository repo, MemberRepository memberRepo,
-                                CategoryRepository categoryRepo, ScheduleRepository scheduleRepo) {
+                                CategoryRepository categoryRepo, ScheduleRepository scheduleRepo,
+                                PaymentMethodRepository paymentMethodRepo) {
         this.repo = repo;
         this.memberRepo = memberRepo;
         this.categoryRepo = categoryRepo;
         this.scheduleRepo = scheduleRepo;
+        this.paymentMethodRepo = paymentMethodRepo;
     }
 
     public AccountRecordDtos.AccountRecordResponse create(Long memberId, AccountRecordDtos.CreateRequest req) {
@@ -39,7 +44,10 @@ public class AccountRecordService {
             scheduleRepo.findByIdAndMember_Id(req.scheduleId(), memberId)
                     .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
         }
-        AccountRecord saved = repo.save(new AccountRecord(member, category, req.amount(), req.transactionTime(), req.scheduleId()));
+        PaymentMethod paymentMethod = findPaymentMethod(memberId, req.paymentMethodId());
+
+        AccountRecord saved = repo.save(new AccountRecord(member, category, paymentMethod,
+                req.amount(), req.transactionTime(), req.scheduleId()));
         return toDto(saved);
     }
 
@@ -69,7 +77,13 @@ public class AccountRecordService {
         Category category = categoryRepo.findById(req.categoryId())
                 .orElseThrow(() -> new IllegalArgumentException("카테고리가 없습니다."));
 
-        ar.update(category, req.amount(), req.transactionTime(), req.scheduleId());
+        if (req.scheduleId() != null) {
+            scheduleRepo.findByIdAndMember_Id(req.scheduleId(), memberId)
+                    .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
+        }
+        PaymentMethod paymentMethod = findPaymentMethod(memberId, req.paymentMethodId());
+
+        ar.update(category, paymentMethod, req.amount(), req.transactionTime(), req.scheduleId());
         return toDto(ar);
     }
 
@@ -79,12 +93,22 @@ public class AccountRecordService {
         repo.delete(ar);
     }
 
+    // 남의 지출 수단을 붙이지 못하도록 소유자까지 함께 확인한다.
+    private PaymentMethod findPaymentMethod(Long memberId, Long paymentMethodId) {
+        if (paymentMethodId == null) return null;
+        return paymentMethodRepo.findByIdAndMember_Id(paymentMethodId, memberId)
+                .orElseThrow(() -> new IllegalArgumentException("지출 수단이 없습니다."));
+    }
+
     private AccountRecordDtos.AccountRecordResponse toDto(AccountRecord ar) {
+        PaymentMethod pm = ar.getPaymentMethod();
         return new AccountRecordDtos.AccountRecordResponse(
                 ar.getId(),
                 ar.getCategory().getId(),
                 ar.getCategory().getName(),
                 ar.getCategory().getType().name(),
+                pm != null ? pm.getId() : null,
+                pm != null ? pm.getName() : null,
                 ar.getAmount(),
                 ar.getTransactionTime(),
                 ar.getScheduleId()
