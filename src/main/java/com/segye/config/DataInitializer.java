@@ -7,6 +7,8 @@ import com.segye.category.CategoryRepository;
 import com.segye.category.CategoryType;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
+import com.segye.paymentmethod.PaymentMethod;
+import com.segye.paymentmethod.PaymentMethodRepository;
 import com.segye.schedule.Schedule;
 import com.segye.schedule.ScheduleRepository;
 import com.segye.todo.Todo;
@@ -31,6 +33,7 @@ public class DataInitializer implements ApplicationRunner {
     private final ScheduleRepository scheduleRepository;
     private final TodoRepository todoRepository;
     private final AccountRecordRepository accountRecordRepository;
+    private final PaymentMethodRepository paymentMethodRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataInitializer(MemberRepository memberRepository,
@@ -38,12 +41,14 @@ public class DataInitializer implements ApplicationRunner {
                            ScheduleRepository scheduleRepository,
                            TodoRepository todoRepository,
                            AccountRecordRepository accountRecordRepository,
+                           PaymentMethodRepository paymentMethodRepository,
                            PasswordEncoder passwordEncoder) {
         this.memberRepository = memberRepository;
         this.categoryRepository = categoryRepository;
         this.scheduleRepository = scheduleRepository;
         this.todoRepository = todoRepository;
         this.accountRecordRepository = accountRecordRepository;
+        this.paymentMethodRepository = paymentMethodRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -67,6 +72,13 @@ public class DataInitializer implements ApplicationRunner {
         Category catHanaSal = categoryRepository.save(new Category("하나 월급",  CategoryType.INCOME));
         Category catHanaFood= categoryRepository.save(new Category("하나 식비",  CategoryType.EXPENSE));
 
+        // payment methods (회원별) — 프론트 FinanceSettingsApi 가 보장하는 기본값과 같은 이름
+        PaymentMethod m1Salary = paymentMethodRepository.save(new PaymentMethod(m1, "월급"));
+        PaymentMethod m1Cash   = paymentMethodRepository.save(new PaymentMethod(m1, "현금"));
+        PaymentMethod m1Card   = paymentMethodRepository.save(new PaymentMethod(m1, "신용카드"));
+        PaymentMethod m2Salary = paymentMethodRepository.save(new PaymentMethod(m2, "월급"));
+        PaymentMethod m2Cash   = paymentMethodRepository.save(new PaymentMethod(m2, "현금"));
+
         LocalDate today    = LocalDate.now();
         LocalDate tomorrow = today.plusDays(1);
 
@@ -88,15 +100,15 @@ public class DataInitializer implements ApplicationRunner {
 
         // account records
         LocalDateTime t = LocalDateTime.now();
-        accountRecordRepository.save(new AccountRecord(m1, catIncome,  280000L,  t.withHour(9).withMinute(0),   null));
-        accountRecordRepository.save(new AccountRecord(m1, catFood,   -12900L,   t.withHour(12).withMinute(20), chicken.getId()));
-        accountRecordRepository.save(new AccountRecord(m1, catTransit,-6900L,    t.withHour(8).withMinute(40),  null));
-        accountRecordRepository.save(new AccountRecord(m1, catCafe,   -6900L,    t.minusDays(1).withHour(15).withMinute(10), null));
-        accountRecordRepository.save(new AccountRecord(m1, catShop,   -84000L,   t.minusDays(2).withHour(19).withMinute(30), null));
-        accountRecordRepository.save(new AccountRecord(m1, catCulture,-42000L,   t.minusDays(3).withHour(20).withMinute(0),  null));
-        accountRecordRepository.save(new AccountRecord(m1, catSide,   120000L,   t.minusDays(5).withHour(18).withMinute(0),  null));
-        accountRecordRepository.save(new AccountRecord(m1, catFood,   -18500L,   t.minusDays(8).withHour(13).withMinute(5),  null));
-        accountRecordRepository.save(new AccountRecord(m2, catHanaFood,-24000L,  t.withHour(18).withMinute(10), bookClub.getId()));
-        accountRecordRepository.save(new AccountRecord(m2, catHanaSal,320000L,   t.withHour(10).withMinute(0),  null));
+        accountRecordRepository.save(new AccountRecord(m1, catIncome,  m1Salary, 280000L,  t.withHour(9).withMinute(0),   null));
+        accountRecordRepository.save(new AccountRecord(m1, catFood,    m1Card,   -12900L,  t.withHour(12).withMinute(20), chicken.getId()));
+        accountRecordRepository.save(new AccountRecord(m1, catTransit, m1Card,   -6900L,   t.withHour(8).withMinute(40),  null));
+        accountRecordRepository.save(new AccountRecord(m1, catCafe,    m1Cash,   -6900L,   t.minusDays(1).withHour(15).withMinute(10), null));
+        accountRecordRepository.save(new AccountRecord(m1, catShop,    m1Card,   -84000L,  t.minusDays(2).withHour(19).withMinute(30), null));
+        accountRecordRepository.save(new AccountRecord(m1, catCulture, m1Card,   -42000L,  t.minusDays(3).withHour(20).withMinute(0),  null));
+        accountRecordRepository.save(new AccountRecord(m1, catSide,    m1Cash,   120000L,  t.minusDays(5).withHour(18).withMinute(0),  null));
+        accountRecordRepository.save(new AccountRecord(m1, catFood,    m1Cash,   -18500L,  t.minusDays(8).withHour(13).withMinute(5),  null));
+        accountRecordRepository.save(new AccountRecord(m2, catHanaFood,m2Cash,   -24000L,  t.withHour(18).withMinute(10), bookClub.getId()));
+        accountRecordRepository.save(new AccountRecord(m2, catHanaSal, m2Salary, 320000L,  t.withHour(10).withMinute(0),  null));
     }
 }
