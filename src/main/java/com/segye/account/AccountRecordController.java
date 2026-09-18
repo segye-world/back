@@ -1,6 +1,7 @@
 package com.segye.account;
 
 import com.segye.account.dto.AccountRecordDtos;
+import com.segye.category.CategoryType;
 import com.segye.common.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
@@ -58,6 +59,25 @@ public class AccountRecordController {
             @RequestParam int month
     ) {
         return ApiResponse.ok(service.listMonthly(currentMemberId(auth), year, month));
+    }
+
+    @GetMapping("/summary")
+    public ApiResponse<AccountRecordDtos.SummaryResponse> summary(
+            Authentication auth,
+            @RequestParam int year,
+            @RequestParam int month
+    ) {
+        return ApiResponse.ok(service.summary(currentMemberId(auth), year, month));
+    }
+
+    @GetMapping("/category-summary")
+    public ApiResponse<AccountRecordDtos.CategorySummaryResponse> categorySummary(
+            Authentication auth,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam CategoryType type
+    ) {
+        return ApiResponse.ok(service.categorySummary(currentMemberId(auth), year, month, type));
     }
 
     @PutMapping("/{id}")
