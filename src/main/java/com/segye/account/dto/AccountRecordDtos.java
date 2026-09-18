@@ -3,6 +3,7 @@ package com.segye.account.dto;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class AccountRecordDtos {
 
@@ -34,6 +35,38 @@ public class AccountRecordDtos {
             Long amount,
             LocalDateTime transactionTime,
             Long scheduleId
+    ) {
+    }
+
+    public record CategoryAmount(
+            Long categoryId,
+            String categoryName,
+            Long amount
+    ) {
+    }
+
+    public record SummaryResponse(
+            Long totalIncome,
+            Long totalExpense,
+            Long remainingBudget,   // 한도 미설정 시 null
+            Double savingRate,      // 이번 달 수입이 0이면 null. (수입-지출)/수입*100
+            List<CategoryAmount> categoryBreakdown,
+            List<AccountRecordResponse> recentTransactions
+    ) {
+    }
+
+    public record CategorySummaryItem(
+            Long categoryId,
+            String categoryName,
+            Long amount,
+            double ratio   // 전체 합계 대비 비율(%). 합계가 0이면 0
+    ) {
+    }
+
+    public record CategorySummaryResponse(
+            String type,
+            Long totalAmount,
+            List<CategorySummaryItem> categories
     ) {
     }
 }
