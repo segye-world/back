@@ -8,8 +8,6 @@ import com.segye.category.CategoryRepository;
 import com.segye.category.CategoryType;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
-import com.segye.paymentmethod.PaymentMethod;
-import com.segye.paymentmethod.PaymentMethodRepository;
 import com.segye.schedule.ScheduleRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,17 +30,15 @@ public class AccountRecordService {
     private final MemberRepository memberRepo;
     private final CategoryRepository categoryRepo;
     private final ScheduleRepository scheduleRepo;
-    private final PaymentMethodRepository paymentMethodRepo;
     private final BudgetRepository budgetRepo;
 
     public AccountRecordService(AccountRecordRepository repo, MemberRepository memberRepo,
                                 CategoryRepository categoryRepo, ScheduleRepository scheduleRepo,
-                                PaymentMethodRepository paymentMethodRepo, BudgetRepository budgetRepo) {
+                                BudgetRepository budgetRepo) {
         this.repo = repo;
         this.memberRepo = memberRepo;
         this.categoryRepo = categoryRepo;
         this.scheduleRepo = scheduleRepo;
-        this.paymentMethodRepo = paymentMethodRepo;
         this.budgetRepo = budgetRepo;
     }
 
@@ -54,9 +50,9 @@ public class AccountRecordService {
             scheduleRepo.findByIdAndMember_Id(req.scheduleId(), memberId)
                     .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
         }
-        PaymentMethod paymentMethod = findPaymentMethod(memberId, req.paymentMethodId());
+        Category sourceCategory = findSourceCategory(req.sourceCategoryId());
 
-        AccountRecord saved = repo.save(new AccountRecord(member, category, paymentMethod,
+        AccountRecord saved = repo.save(new AccountRecord(member, category, sourceCategory,
                 req.amount(), req.transactionTime(), req.scheduleId()));
         return toDto(saved);
     }
@@ -179,9 +175,9 @@ public class AccountRecordService {
             scheduleRepo.findByIdAndMember_Id(req.scheduleId(), memberId)
                     .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
         }
-        PaymentMethod paymentMethod = findPaymentMethod(memberId, req.paymentMethodId());
+        Category sourceCategory = findSourceCategory(req.sourceCategoryId());
 
-        ar.update(category, paymentMethod, req.amount(), req.transactionTime(), req.scheduleId());
+        ar.update(category, sourceCategory, req.amount(), req.transactionTime(), req.scheduleId());
         return toDto(ar);
     }
 
@@ -191,22 +187,26 @@ public class AccountRecordService {
         repo.delete(ar);
     }
 
-    // 남의 지출 수단을 붙이지 못하도록 소유자까지 함께 확인한다.
-    private PaymentMethod findPaymentMethod(Long memberId, Long paymentMethodId) {
-        if (paymentMethodId == null) return null;
-        return paymentMethodRepo.findByIdAndMember_Id(paymentMethodId, memberId)
-                .orElseThrow(() -> new IllegalArgumentException("지출 수단이 없습니다."));
+    // 수입원은 반드시 INCOME 카테고리여야 한다(지출 카테고리를 수입원으로 잘못 넣는 것을 막는다).
+    private Category findSourceCategory(Long sourceCategoryId) {
+        if (sourceCategoryId == null) return null;
+        Category category = categoryRepo.findById(sourceCategoryId)
+                .orElseThrow(() -> new IllegalArgumentException("수입원이 없습니다."));
+        if (category.getType() != CategoryType.INCOME) {
+            throw new IllegalArgumentException("수입원 카테고리가 아닙니다.");
+        }
+        return category;
     }
 
     private AccountRecordDtos.AccountRecordResponse toDto(AccountRecord ar) {
-        PaymentMethod pm = ar.getPaymentMethod();
+        Category source = ar.getSourceCategory();
         return new AccountRecordDtos.AccountRecordResponse(
                 ar.getId(),
                 ar.getCategory().getId(),
                 ar.getCategory().getName(),
                 ar.getCategory().getType().name(),
-                pm != null ? pm.getId() : null,
-                pm != null ? pm.getName() : null,
+                source != null ? source.getId() : null,
+                source != null ? source.getName() : null,
                 ar.getAmount(),
                 ar.getTransactionTime(),
                 ar.getScheduleId()

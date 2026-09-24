@@ -2,7 +2,6 @@ package com.segye.account;
 
 import com.segye.category.Category;
 import com.segye.member.Member;
-import com.segye.paymentmethod.PaymentMethod;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -42,12 +41,13 @@ public class AccountRecord {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    // 지출 수단 (현금 / 카드 등). 수입 기록에는 없을 수 있어 nullable 이며,
-    // 수단이 삭제되어도 기록은 남도록 DB 레벨에서 payment_method_id → NULL 처리한다.
+    // 지출이 빠져나간 수입원(=지출 수단). 수입원 카테고리(Category, type=INCOME)를 그대로 가리킨다.
+    // 수입 기록에는 없을 수 있어 nullable 이며, 수입원이 삭제되어도 기록은 남도록
+    // DB 레벨에서 source_category_id → NULL 처리한다.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "payment_method_id")
+    @JoinColumn(name = "source_category_id")
     @OnDelete(action = OnDeleteAction.SET_NULL)
-    private PaymentMethod paymentMethod;
+    private Category sourceCategory;
 
     @Column(nullable = false)
     private Long amount;
@@ -59,20 +59,20 @@ public class AccountRecord {
     @Column(name = "schedule_id")
     private Long scheduleId;
 
-    public AccountRecord(Member member, Category category, PaymentMethod paymentMethod,
+    public AccountRecord(Member member, Category category, Category sourceCategory,
                          Long amount, LocalDateTime transactionTime, Long scheduleId) {
         this.member = member;
         this.category = category;
-        this.paymentMethod = paymentMethod;
+        this.sourceCategory = sourceCategory;
         this.amount = amount;
         this.transactionTime = transactionTime;
         this.scheduleId = scheduleId;
     }
 
-    public void update(Category category, PaymentMethod paymentMethod,
+    public void update(Category category, Category sourceCategory,
                        Long amount, LocalDateTime transactionTime, Long scheduleId) {
         this.category = category;
-        this.paymentMethod = paymentMethod;
+        this.sourceCategory = sourceCategory;
         this.amount = amount;
         this.transactionTime = transactionTime;
         this.scheduleId = scheduleId;
