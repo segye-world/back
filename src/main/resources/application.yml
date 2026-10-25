@@ -6,8 +6,9 @@ spring:
     password: ${DB_PASSWORD:ssafy}
   jpa:
     hibernate:
-      # 영속 DB에서는 update 가 스키마 드리프트를 만들 수 있어, Flyway 도입 후 validate 로 조일 예정입니다.
-      ddl-auto: update
+      # 스키마 변경은 db/migration 의 Flyway 스크립트로만 합니다. Hibernate 는 엔티티와 스키마가
+      # 맞는지 부팅 시 검증만 하므로, 엔티티를 고치면 같은 PR 에 마이그레이션도 추가해야 합니다.
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true

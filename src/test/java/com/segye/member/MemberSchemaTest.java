@@ -25,10 +25,8 @@ class MemberSchemaTest extends PostgresTestSupport {
 
     // email 유니크 인덱스를 세는 쿼리.
     //
-    // 주의: 신규 스키마 생성 시에는 Hibernate 가 @Column(unique=true) 와 @Table 의 @Index 중복을
-    // 알아서 정리하므로, 이 테스트는 4e04a48 의 WARN 회귀 자체를 재현하지 못한다.
-    // (그 WARN 은 이미 만들어진 스키마에 ddl-auto=update 로 다시 붙을 때 발생한다.)
-    // 여기서는 "email 유니크 인덱스는 정확히 하나"라는 스키마 계약을 고정하는 역할만 한다.
+    // 스키마는 Flyway(V1__baseline.sql)가 만들므로, 이 테스트는 마이그레이션 스크립트가
+    // "email 유니크 인덱스는 정확히 하나"라는 스키마 계약을 지키는지 고정하는 역할을 한다.
     private static final String UNIQUE_INDEXES_ON_EMAIL = """
             select i.relname
             from pg_index x

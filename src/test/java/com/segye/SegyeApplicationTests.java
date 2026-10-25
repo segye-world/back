@@ -21,14 +21,27 @@ class SegyeApplicationTests extends PostgresTestSupport {
     JdbcTemplate jdbcTemplate;
 
     @Test
-    @DisplayName("PostgreSQL 을 물고 스프링 컨텍스트가 뜨고, 전 엔티티의 DDL 이 생성된다")
+    @DisplayName("PostgreSQL 을 물고 스프링 컨텍스트가 뜨고, Flyway 가 전 엔티티의 테이블을 만든다")
     void contextLoads() throws Exception {
         try (Connection conn = dataSource.getConnection()) {
             assertThat(conn.getMetaData().getDatabaseProductName()).isEqualTo("PostgreSQL");
         }
 
-        // ddl-auto: update 가 실제 PostgreSQL 에서 모든 테이블을 만들어냈는지 확인한다.
-        assertThat(tableNames()).contains("member", "category", "schedule", "todo", "account_record");
+        // 컨텍스트가 떴다는 것 자체가 ddl-auto: validate 를 통과했다는 뜻이다.
+        // 여기서는 그 스키마를 Hibernate 가 아니라 Flyway 마이그레이션이 만들었는지 확인한다.
+        assertThat(tableNames()).contains("member", "category", "schedule", "todo", "account_record", "budget");
+        assertThat(failedMigrations()).isZero();
+        assertThat(appliedVersions()).contains("1");
+    }
+
+    private Integer failedMigrations() {
+        return jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where not success", Integer.class);
+    }
+
+    private java.util.List<String> appliedVersions() {
+        return jdbcTemplate.queryForList(
+                "select version from flyway_schema_history where success and version is not null", String.class);
     }
 
     @Test
