@@ -12,7 +12,8 @@ public class AccountRecordDtos {
             @NotNull Long amount,
             @NotNull LocalDateTime transactionTime,
             Long scheduleId,
-            Long sourceCategoryId  // 수입원(=지출 수단) 카테고리 id, nullable — 수입 기록처럼 필요 없는 경우
+            Long sourceCategoryId,  // 수입원(=지출 수단) 카테고리 id, nullable — 수입 기록처럼 필요 없는 경우
+            String memo
     ) {
     }
 
@@ -21,7 +22,8 @@ public class AccountRecordDtos {
             @NotNull Long amount,
             @NotNull LocalDateTime transactionTime,
             Long scheduleId,
-            Long sourceCategoryId  // null 이면 연결 해제
+            Long sourceCategoryId,  // null 이면 연결 해제
+            String memo
     ) {
     }
 
@@ -34,7 +36,8 @@ public class AccountRecordDtos {
             String sourceCategoryName,
             Long amount,
             LocalDateTime transactionTime,
-            Long scheduleId
+            Long scheduleId,
+            String memo
     ) {
     }
 

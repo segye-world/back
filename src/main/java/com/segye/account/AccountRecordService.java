@@ -53,7 +53,7 @@ public class AccountRecordService {
         Category sourceCategory = findSourceCategory(req.sourceCategoryId());
 
         AccountRecord saved = repo.save(new AccountRecord(member, category, sourceCategory,
-                req.amount(), req.transactionTime(), req.scheduleId()));
+                req.amount(), req.transactionTime(), req.scheduleId(), req.memo()));
         return toDto(saved);
     }
 
@@ -177,7 +177,7 @@ public class AccountRecordService {
         }
         Category sourceCategory = findSourceCategory(req.sourceCategoryId());
 
-        ar.update(category, sourceCategory, req.amount(), req.transactionTime(), req.scheduleId());
+        ar.update(category, sourceCategory, req.amount(), req.transactionTime(), req.scheduleId(), req.memo());
         return toDto(ar);
     }
 
@@ -209,7 +209,8 @@ public class AccountRecordService {
                 source != null ? source.getName() : null,
                 ar.getAmount(),
                 ar.getTransactionTime(),
-                ar.getScheduleId()
+                ar.getScheduleId(),
+                ar.getMemo()
         );
     }
 }
