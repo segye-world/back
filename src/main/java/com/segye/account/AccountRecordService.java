@@ -8,6 +8,7 @@ import com.segye.category.CategoryRepository;
 import com.segye.category.CategoryType;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
+import com.segye.schedule.Schedule;
 import com.segye.schedule.ScheduleRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,14 +47,11 @@ public class AccountRecordService {
         Member member = memberRepo.findById(memberId).orElseThrow(() -> new SecurityException("회원이 없습니다."));
         Category category = categoryRepo.findById(req.categoryId()).orElseThrow(() -> new IllegalArgumentException("카테고리가 없습니다."));
 
-        if (req.scheduleId() != null) {
-            scheduleRepo.findByIdAndMember_Id(req.scheduleId(), memberId)
-                    .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
-        }
+        Schedule schedule = findSchedule(memberId, req.scheduleId());
         Category sourceCategory = findSourceCategory(req.sourceCategoryId());
 
         AccountRecord saved = repo.save(new AccountRecord(member, category, sourceCategory,
-                req.amount(), req.transactionTime(), req.scheduleId(), req.memo()));
+                req.amount(), req.transactionTime(), schedule, req.memo()));
         return toDto(saved);
     }
 
@@ -171,13 +169,10 @@ public class AccountRecordService {
         Category category = categoryRepo.findById(req.categoryId())
                 .orElseThrow(() -> new IllegalArgumentException("카테고리가 없습니다."));
 
-        if (req.scheduleId() != null) {
-            scheduleRepo.findByIdAndMember_Id(req.scheduleId(), memberId)
-                    .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
-        }
+        Schedule schedule = findSchedule(memberId, req.scheduleId());
         Category sourceCategory = findSourceCategory(req.sourceCategoryId());
 
-        ar.update(category, sourceCategory, req.amount(), req.transactionTime(), req.scheduleId(), req.memo());
+        ar.update(category, sourceCategory, req.amount(), req.transactionTime(), schedule, req.memo());
         return toDto(ar);
     }
 
@@ -185,6 +180,12 @@ public class AccountRecordService {
         AccountRecord ar = repo.findByIdAndMember_Id(id, memberId)
                 .orElseThrow(() -> new IllegalArgumentException("내역이 없습니다."));
         repo.delete(ar);
+    }
+
+    private Schedule findSchedule(Long memberId, Long scheduleId) {
+        if (scheduleId == null) return null;
+        return scheduleRepo.findByIdAndMember_Id(scheduleId, memberId)
+                .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
     }
 
     // 수입원은 반드시 INCOME 카테고리여야 한다(지출 카테고리를 수입원으로 잘못 넣는 것을 막는다).
@@ -200,6 +201,7 @@ public class AccountRecordService {
 
     private AccountRecordDtos.AccountRecordResponse toDto(AccountRecord ar) {
         Category source = ar.getSourceCategory();
+        Schedule schedule = ar.getSchedule();
         return new AccountRecordDtos.AccountRecordResponse(
                 ar.getId(),
                 ar.getCategory().getId(),
@@ -209,7 +211,7 @@ public class AccountRecordService {
                 source != null ? source.getName() : null,
                 ar.getAmount(),
                 ar.getTransactionTime(),
-                ar.getScheduleId(),
+                schedule != null ? schedule.getId() : null,
                 ar.getMemo()
         );
     }

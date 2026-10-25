@@ -2,6 +2,7 @@ package com.segye.account;
 
 import com.segye.category.Category;
 import com.segye.member.Member;
+import com.segye.schedule.Schedule;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -55,31 +56,33 @@ public class AccountRecord {
     @Column(name = "transaction_time", nullable = false)
     private LocalDateTime transactionTime;
 
-    // ERD상 schedule_id nullable: 이번 MVP에서는 엔티티만 nullable Long으로 두고, 나중에 Schedule 엔티티 붙일 때 연관관계로 바꾸면 됨
-    @Column(name = "schedule_id")
-    private Long scheduleId;
+    // 일정이 삭제돼도 기록은 남아야 하므로, 연결만 끊도록 DB 레벨에서 schedule_id → NULL 처리한다.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "schedule_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    private Schedule schedule;
 
     @Column(length = 500)
     private String memo;
 
     public AccountRecord(Member member, Category category, Category sourceCategory,
-                         Long amount, LocalDateTime transactionTime, Long scheduleId, String memo) {
+                         Long amount, LocalDateTime transactionTime, Schedule schedule, String memo) {
         this.member = member;
         this.category = category;
         this.sourceCategory = sourceCategory;
         this.amount = amount;
         this.transactionTime = transactionTime;
-        this.scheduleId = scheduleId;
+        this.schedule = schedule;
         this.memo = memo;
     }
 
     public void update(Category category, Category sourceCategory,
-                       Long amount, LocalDateTime transactionTime, Long scheduleId, String memo) {
+                       Long amount, LocalDateTime transactionTime, Schedule schedule, String memo) {
         this.category = category;
         this.sourceCategory = sourceCategory;
         this.amount = amount;
         this.transactionTime = transactionTime;
-        this.scheduleId = scheduleId;
+        this.schedule = schedule;
         this.memo = memo;
     }
 }

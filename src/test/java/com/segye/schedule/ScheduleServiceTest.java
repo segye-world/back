@@ -1,9 +1,15 @@
 package com.segye.schedule;
 
+import com.segye.account.AccountRecord;
+import com.segye.account.AccountRecordRepository;
+import com.segye.category.Category;
+import com.segye.category.CategoryRepository;
+import com.segye.category.CategoryType;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
 import com.segye.schedule.dto.ScheduleDtos;
 import com.segye.support.PostgresTestSupport;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +35,18 @@ class ScheduleServiceTest extends PostgresTestSupport {
 
     @Autowired
     MemberRepository memberRepository;
+
+    @Autowired
+    ScheduleRepository scheduleRepository;
+
+    @Autowired
+    CategoryRepository categoryRepository;
+
+    @Autowired
+    AccountRecordRepository accountRecordRepository;
+
+    @Autowired
+    EntityManager entityManager;
 
     private Long memberId;
 
@@ -86,5 +105,26 @@ class ScheduleServiceTest extends PostgresTestSupport {
         assertThat(scheduleService.listByDate(otherId, LocalDate.of(2026, 9, 8))).isEmpty();
         assertThatThrownBy(() -> scheduleService.delete(otherId, id))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("일정을 삭제해도 연결된 수입·지출 기록은 남고 연결만 끊어진다")
+    void deletingScheduleDisconnectsAccountRecordsInsteadOfLeavingDanglingId() {
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        Category category = categoryRepository.save(new Category("식비", CategoryType.EXPENSE));
+        Long scheduleId = scheduleService.create(memberId, request(7, 9)).id();
+        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow();
+
+        AccountRecord record = accountRecordRepository.save(new AccountRecord(
+                member, category, null, -12900L, LocalDateTime.now(), schedule, null));
+        Long recordId = record.getId();
+
+        scheduleService.delete(memberId, scheduleId);
+        entityManager.flush();
+        entityManager.clear();
+
+        AccountRecord reloaded = accountRecordRepository.findById(recordId).orElseThrow();
+        assertThat(reloaded.getSchedule()).isNull();
+        assertThat(scheduleRepository.findById(scheduleId)).isEmpty();
     }
 }
