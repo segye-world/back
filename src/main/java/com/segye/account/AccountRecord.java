@@ -59,22 +59,27 @@ public class AccountRecord {
     @Column(name = "schedule_id")
     private Long scheduleId;
 
+    @Column(length = 500)
+    private String memo;
+
     public AccountRecord(Member member, Category category, Category sourceCategory,
-                         Long amount, LocalDateTime transactionTime, Long scheduleId) {
+                         Long amount, LocalDateTime transactionTime, Long scheduleId, String memo) {
         this.member = member;
         this.category = category;
         this.sourceCategory = sourceCategory;
         this.amount = amount;
         this.transactionTime = transactionTime;
         this.scheduleId = scheduleId;
+        this.memo = memo;
     }
 
     public void update(Category category, Category sourceCategory,
-                       Long amount, LocalDateTime transactionTime, Long scheduleId) {
+                       Long amount, LocalDateTime transactionTime, Long scheduleId, String memo) {
         this.category = category;
         this.sourceCategory = sourceCategory;
         this.amount = amount;
         this.transactionTime = transactionTime;
         this.scheduleId = scheduleId;
+        this.memo = memo;
     }
 }

@@ -52,7 +52,7 @@ class AccountRecordSummaryServiceTest extends PostgresTestSupport {
 
     private void record(Long categoryId, long amount, LocalDateTime time) {
         accountRecordService.create(memberId,
-                new AccountRecordDtos.CreateRequest(categoryId, amount, time, null, null));
+                new AccountRecordDtos.CreateRequest(categoryId, amount, time, null, null, null));
     }
 
     @Test

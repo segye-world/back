@@ -90,15 +90,15 @@ public class DataInitializer implements ApplicationRunner {
 
         // account records — 지출 기록의 세 번째 인자는 수입원(=지출 수단) 카테고리다.
         LocalDateTime t = LocalDateTime.now();
-        accountRecordRepository.save(new AccountRecord(m1, catSalary,  null,    280000L,  t.withHour(9).withMinute(0),   null));
-        accountRecordRepository.save(new AccountRecord(m1, catFood,    catCard, -12900L,  t.withHour(12).withMinute(20), chicken.getId()));
-        accountRecordRepository.save(new AccountRecord(m1, catTransit, catCard, -6900L,   t.withHour(8).withMinute(40),  null));
-        accountRecordRepository.save(new AccountRecord(m1, catCafe,    catCash, -6900L,   t.minusDays(1).withHour(15).withMinute(10), null));
-        accountRecordRepository.save(new AccountRecord(m1, catShop,    catCard, -84000L,  t.minusDays(2).withHour(19).withMinute(30), null));
-        accountRecordRepository.save(new AccountRecord(m1, catCulture, catCard, -42000L,  t.minusDays(3).withHour(20).withMinute(0),  null));
-        accountRecordRepository.save(new AccountRecord(m1, catSide,    null,    120000L,  t.minusDays(5).withHour(18).withMinute(0),  null));
-        accountRecordRepository.save(new AccountRecord(m1, catFood,    catCash, -18500L,  t.minusDays(8).withHour(13).withMinute(5),  null));
-        accountRecordRepository.save(new AccountRecord(m2, catHanaFood,catCash, -24000L,  t.withHour(18).withMinute(10), bookClub.getId()));
-        accountRecordRepository.save(new AccountRecord(m2, catSalary,  null,    320000L,  t.withHour(10).withMinute(0),  null));
+        accountRecordRepository.save(new AccountRecord(m1, catSalary,  null,    280000L,  t.withHour(9).withMinute(0),   null, null));
+        accountRecordRepository.save(new AccountRecord(m1, catFood,    catCard, -12900L,  t.withHour(12).withMinute(20), chicken.getId(), null));
+        accountRecordRepository.save(new AccountRecord(m1, catTransit, catCard, -6900L,   t.withHour(8).withMinute(40),  null, null));
+        accountRecordRepository.save(new AccountRecord(m1, catCafe,    catCash, -6900L,   t.minusDays(1).withHour(15).withMinute(10), null, null));
+        accountRecordRepository.save(new AccountRecord(m1, catShop,    catCard, -84000L,  t.minusDays(2).withHour(19).withMinute(30), null, null));
+        accountRecordRepository.save(new AccountRecord(m1, catCulture, catCard, -42000L,  t.minusDays(3).withHour(20).withMinute(0),  null, null));
+        accountRecordRepository.save(new AccountRecord(m1, catSide,    null,    120000L,  t.minusDays(5).withHour(18).withMinute(0),  null, null));
+        accountRecordRepository.save(new AccountRecord(m1, catFood,    catCash, -18500L,  t.minusDays(8).withHour(13).withMinute(5),  null, null));
+        accountRecordRepository.save(new AccountRecord(m2, catHanaFood,catCash, -24000L,  t.withHour(18).withMinute(10), bookClub.getId(), null));
+        accountRecordRepository.save(new AccountRecord(m2, catSalary,  null,    320000L,  t.withHour(10).withMinute(0),  null, null));
     }
 }
