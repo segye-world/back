@@ -6,6 +6,7 @@ import com.segye.budget.dto.BudgetDtos;
 import com.segye.category.Category;
 import com.segye.category.CategoryRepository;
 import com.segye.category.CategoryType;
+import com.segye.member.AuthProvider;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
 import com.segye.support.PostgresTestSupport;
@@ -44,7 +45,7 @@ class AccountRecordSummaryServiceTest extends PostgresTestSupport {
 
     @BeforeEach
     void setUp() {
-        memberId = memberRepository.save(new Member("summary-" + UUID.randomUUID() + "@example.com", "hash")).getId();
+        memberId = memberRepository.save(new Member(AuthProvider.DEV, "summary-" + UUID.randomUUID(), "tester")).getId();
         foodCategoryId = categoryRepository.save(new Category("식비", CategoryType.EXPENSE)).getId();
         transportCategoryId = categoryRepository.save(new Category("교통", CategoryType.EXPENSE)).getId();
         salaryCategoryId = categoryRepository.save(new Category("급여", CategoryType.INCOME)).getId();

@@ -23,53 +23,45 @@ class MemberSchemaTest extends PostgresTestSupport {
     @Autowired
     MemberRepository memberRepository;
 
-    // email 유니크 인덱스를 세는 쿼리.
-    //
-    // 스키마는 Flyway(V1__baseline.sql)가 만들므로, 이 테스트는 마이그레이션 스크립트가
-    // "email 유니크 인덱스는 정확히 하나"라는 스키마 계약을 지키는지 고정하는 역할을 한다.
-    private static final String UNIQUE_INDEXES_ON_EMAIL = """
-            select i.relname
-            from pg_index x
-            join pg_class i on i.oid = x.indexrelid
-            join pg_class t on t.oid = x.indrelid
-            join pg_attribute a on a.attrelid = t.oid and a.attnum = any(x.indkey)
-            where t.relname = 'member' and a.attname = 'email' and x.indisunique
-            """;
-
     @Test
-    @DisplayName("email 유니크 인덱스는 idx_member_email 하나만 존재한다")
-    void hasExactlyOneUniqueIndexOnEmail() {
-        List<String> indexes = jdbcTemplate.queryForList(UNIQUE_INDEXES_ON_EMAIL, String.class);
-
-        assertThat(indexes).containsExactly("idx_member_email");
-    }
-
-    @Test
-    @DisplayName("중복 이메일은 DB 레벨에서 거부된다")
+    @DisplayName("같은 로그인 수단의 같은 회원번호는 DB 레벨에서 거부된다")
     @Transactional
-    void rejectsDuplicateEmailAtDbLevel() {
-        String email = "dup-" + UUID.randomUUID() + "@example.com";
-        memberRepository.saveAndFlush(new Member(email, "hash"));
+    void rejectsDuplicateProviderIdAtDbLevel() {
+        String kakaoId = "dup-" + UUID.randomUUID();
+        memberRepository.saveAndFlush(new Member(AuthProvider.KAKAO, kakaoId, "a"));
 
-        assertThatThrownBy(() -> memberRepository.saveAndFlush(new Member(email, "hash2")))
+        assertThatThrownBy(() -> memberRepository.saveAndFlush(new Member(AuthProvider.KAKAO, kakaoId, "b")))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
-    @DisplayName("email/password 는 NOT NULL 이고 varchar(255) 로 매핑된다")
-    void columnsAreNotNullVarchar255() {
+    @DisplayName("회원번호가 같아도 로그인 수단이 다르면 다른 회원이다")
+    @Transactional
+    void sameProviderIdOnDifferentProviderIsAllowed() {
+        String id = "same-" + UUID.randomUUID();
+        memberRepository.saveAndFlush(new Member(AuthProvider.KAKAO, id, "a"));
+        memberRepository.saveAndFlush(new Member(AuthProvider.DEV, id, "b"));
+
+        assertThat(memberRepository.findByProviderAndProviderId(AuthProvider.KAKAO, id)).isPresent();
+        assertThat(memberRepository.findByProviderAndProviderId(AuthProvider.DEV, id)).isPresent();
+    }
+
+    @Test
+    @DisplayName("이메일·비밀번호 컬럼은 없고, provider·provider_id 는 NOT NULL, nickname 은 nullable 이다")
+    void columns() {
         List<String> spec = jdbcTemplate.query(
                 """
                 select column_name || '|' || data_type || '|' || coalesce(character_maximum_length::text, '-')
                        || '|' || is_nullable
                 from information_schema.columns
-                where table_name = 'member' and column_name in ('email', 'password')
+                where table_schema = 'public' and table_name = 'member' and column_name <> 'id'
                 order by column_name
                 """,
                 (rs, n) -> rs.getString(1));
 
         assertThat(spec).containsExactly(
-                "email|character varying|255|NO",
-                "password|character varying|255|NO");
+                "nickname|character varying|100|YES",
+                "provider|character varying|20|NO",
+                "provider_id|character varying|64|NO");
     }
 }

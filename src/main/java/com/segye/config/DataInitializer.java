@@ -5,6 +5,7 @@ import com.segye.account.AccountRecordRepository;
 import com.segye.category.Category;
 import com.segye.category.CategoryRepository;
 import com.segye.category.CategoryType;
+import com.segye.member.AuthProvider;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
 import com.segye.schedule.Schedule;
@@ -14,7 +15,6 @@ import com.segye.todo.TodoRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,20 +31,17 @@ public class DataInitializer implements ApplicationRunner {
     private final ScheduleRepository scheduleRepository;
     private final TodoRepository todoRepository;
     private final AccountRecordRepository accountRecordRepository;
-    private final PasswordEncoder passwordEncoder;
 
     public DataInitializer(MemberRepository memberRepository,
                            CategoryRepository categoryRepository,
                            ScheduleRepository scheduleRepository,
                            TodoRepository todoRepository,
-                           AccountRecordRepository accountRecordRepository,
-                           PasswordEncoder passwordEncoder) {
+                           AccountRecordRepository accountRecordRepository) {
         this.memberRepository = memberRepository;
         this.categoryRepository = categoryRepository;
         this.scheduleRepository = scheduleRepository;
         this.todoRepository = todoRepository;
         this.accountRecordRepository = accountRecordRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -52,9 +49,9 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         if (memberRepository.count() > 0) return;
 
-        String encoded = passwordEncoder.encode("mock-password");
-        Member m1 = memberRepository.save(new Member("segye@example.com", encoded));
-        Member m2 = memberRepository.save(new Member("hana@example.com", encoded));
+        // 카카오 계정이 없는 목 회원이라 dev-login(app.auth.dev-login-enabled=true)으로만 로그인할 수 있다.
+        Member m1 = memberRepository.save(new Member(AuthProvider.DEV, "mock-segye", "세계"));
+        Member m2 = memberRepository.save(new Member(AuthProvider.DEV, "mock-hana", "하나"));
 
         // 카테고리(전역 — 엔티티에 회원 FK 없음).
         // 수입원(지출 수단 겸용)과 지출 카테고리를 모두 여기서 만든다.

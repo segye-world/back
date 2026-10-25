@@ -1,6 +1,7 @@
 package com.segye.budget;
 
 import com.segye.budget.dto.BudgetDtos;
+import com.segye.member.AuthProvider;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
 import com.segye.support.PostgresTestSupport;
@@ -34,7 +35,7 @@ class BudgetServiceTest extends PostgresTestSupport {
     }
 
     private Member newMember() {
-        return memberRepository.save(new Member("budget-" + UUID.randomUUID() + "@example.com", "hash"));
+        return memberRepository.save(new Member(AuthProvider.DEV, "budget-" + UUID.randomUUID(), "tester"));
     }
 
     private BudgetDtos.UpsertRequest request(int year, int month, long limitAmount) {
