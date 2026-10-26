@@ -1,11 +1,12 @@
 package com.segye;
 
 import com.segye.auth.JwtProperties;
+import com.segye.auth.kakao.KakaoProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, KakaoProperties.class})
 @SpringBootApplication
 public class SegyeApplication {
 

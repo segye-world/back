@@ -1,8 +1,13 @@
 package com.segye.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.segye.auth.kakao.KakaoApiException;
+import com.segye.auth.kakao.KakaoClient.KakaoUser;
+import com.segye.auth.kakao.KakaoClient.TokenInfo;
+import com.segye.member.AuthProvider;
+import com.segye.member.Member;
 import com.segye.member.MemberRepository;
-import com.segye.support.PostgresTestSupport;
+import com.segye.support.KakaoMockTestSupport;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -15,6 +20,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -22,8 +28,10 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,8 +39,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @AutoConfigureMockMvc
 @Transactional
-@DisplayName("회원가입/로그인 API")
-class AuthApiTest extends PostgresTestSupport {
+@DisplayName("카카오 로그인 / JWT 인증")
+class AuthApiTest extends KakaoMockTestSupport {
 
     @Autowired
     MockMvc mvc;
@@ -49,91 +57,128 @@ class AuthApiTest extends PostgresTestSupport {
     @Autowired
     MemberRepository memberRepository;
 
-    private String uniqueEmail() {
-        return "user-" + UUID.randomUUID() + "@example.com";
+    private long randomKakaoId() {
+        return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
     }
 
-    private void signUp(String email, String password) throws Exception {
-        mvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(Map.of("email", email, "password", password))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+    private void givenKakaoUser(String kakaoToken, long kakaoId, String nickname) {
+        given(kakaoClient.getTokenInfo(kakaoToken)).willReturn(new TokenInfo(kakaoId, OUR_APP_ID));
+        given(kakaoClient.getUser(kakaoToken)).willReturn(new KakaoUser(kakaoId, nickname));
     }
+
+    private ResultActions kakaoLogin(String kakaoToken) throws Exception {
+        return mvc.perform(post("/api/v1/auth/kakao")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("accessToken", kakaoToken))));
+    }
+
+    private Long memberIdFrom(ResultActions result) throws Exception {
+        String body = result.andReturn().getResponse().getContentAsString();
+        return tokenProvider.validateAndGetMemberId(om.readTree(body).path("data").path("accessToken").asText());
+    }
+
+    // --- 카카오 로그인 ---
 
     @Test
-    @DisplayName("가입 후 로그인하면 memberId 를 subject 로 가지는 JWT 가 발급된다")
-    void signUpThenLogin() throws Exception {
-        String email = uniqueEmail();
-        signUp(email, "password123");
+    @DisplayName("처음 로그인하면 회원을 만들고, 그 회원의 JWT 와 isNewMember=true 를 준다")
+    void firstLoginCreatesMember() throws Exception {
+        long kakaoId = randomKakaoId();
+        givenKakaoUser("token-1", kakaoId, "세계");
 
-        String body = mvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(Map.of("email", email, "password", "password123"))))
+        ResultActions result = kakaoLogin("token-1")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andReturn().getResponse().getContentAsString();
+                .andExpect(jsonPath("$.data.isNewMember").value(true));
 
-        String token = om.readTree(body).path("data").path("accessToken").asText();
-        assertThat(tokenProvider.validateAndGetMemberId(token)).isPositive();
+        Member member = memberRepository.findByProviderAndProviderId(AuthProvider.KAKAO, String.valueOf(kakaoId))
+                .orElseThrow();
+        assertThat(member.getNickname()).isEqualTo("세계");
+        assertThat(memberIdFrom(result)).isEqualTo(member.getId());
     }
 
     @Test
-    @DisplayName("비밀번호는 평문이 아니라 BCrypt 해시로 저장된다")
-    void storesHashedPassword() throws Exception {
-        String email = uniqueEmail();
-        signUp(email, "password123");
+    @DisplayName("다시 로그인하면 같은 회원으로 로그인되고, 바뀐 닉네임을 반영한다")
+    void secondLoginReusesMember() throws Exception {
+        long kakaoId = randomKakaoId();
+        givenKakaoUser("token-1", kakaoId, "세계");
+        Long firstId = memberIdFrom(kakaoLogin("token-1").andExpect(status().isOk()));
 
-        String stored = memberRepository.findByEmail(email).orElseThrow().getPassword();
-        assertThat(stored).isNotEqualTo("password123").startsWith("$2");
+        givenKakaoUser("token-2", kakaoId, "새 닉네임");
+        ResultActions second = kakaoLogin("token-2")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isNewMember").value(false));
+
+        assertThat(memberIdFrom(second)).isEqualTo(firstId);
+        assertThat(memberRepository.findById(firstId).orElseThrow().getNickname()).isEqualTo("새 닉네임");
     }
 
     @Test
-    @DisplayName("이미 가입된 이메일이면 400 BAD_REQUEST 로 거절한다")
-    void rejectsDuplicateEmail() throws Exception {
-        String email = uniqueEmail();
-        signUp(email, "password123");
+    @DisplayName("다른 앱에서 발급된 카카오 토큰은 401 이고 회원을 만들지 않는다")
+    void rejectsTokenIssuedForAnotherApp() throws Exception {
+        long kakaoId = randomKakaoId();
+        given(kakaoClient.getTokenInfo("foreign")).willReturn(new TokenInfo(kakaoId, OUR_APP_ID + 1));
+        given(kakaoClient.getUser("foreign")).willReturn(new KakaoUser(kakaoId, "남의 앱 사용자"));
 
-        mvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(Map.of("email", email, "password", "password123"))))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+        kakaoLogin("foreign")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+
+        assertThat(memberRepository.findByProviderAndProviderId(AuthProvider.KAKAO, String.valueOf(kakaoId)))
+                .isEmpty();
     }
 
     @Test
-    @DisplayName("비밀번호가 8자 미만이면 400 VALIDATION_ERROR 로 거절한다")
-    void rejectsShortPassword() throws Exception {
-        mvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(Map.of("email", uniqueEmail(), "password", "short"))))
+    @DisplayName("토큰 정보와 사용자 정보의 회원번호가 다르면 401 이다")
+    void rejectsMismatchedKakaoIds() throws Exception {
+        given(kakaoClient.getTokenInfo("t")).willReturn(new TokenInfo(1L, OUR_APP_ID));
+        given(kakaoClient.getUser("t")).willReturn(new KakaoUser(2L, "x"));
+
+        kakaoLogin("t").andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("카카오가 토큰을 거절하면 401 이다")
+    void invalidKakaoTokenYields401() throws Exception {
+        given(kakaoClient.getTokenInfo("expired"))
+                .willThrow(new SecurityException("카카오 인증이 만료되었거나 올바르지 않습니다."));
+
+        kakaoLogin("expired")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    @DisplayName("카카오 서버 장애는 401 이 아니라 502 로 구분한다")
+    void kakaoOutageYields502() throws Exception {
+        given(kakaoClient.getTokenInfo("t")).willThrow(new KakaoApiException("timeout"));
+
+        kakaoLogin("t")
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.error.code").value("KAKAO_UNAVAILABLE"));
+    }
+
+    @Test
+    @DisplayName("카카오 토큰이 비어 있으면 400 VALIDATION_ERROR 이다")
+    void blankTokenYields400() throws Exception {
+        kakaoLogin(" ")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
     }
 
-    @Test
-    @DisplayName("비밀번호가 틀리면 401 을 반환하고, 존재하지 않는 계정과 같은 메시지를 준다")
-    void rejectsWrongPasswordWithoutLeakingAccountExistence() throws Exception {
-        String email = uniqueEmail();
-        signUp(email, "password123");
-
-        String wrongPw = mvc.perform(post("/api/v1/auth/login")
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"/api/v1/auth/login", "/api/v1/auth/signup", "/api/v1/auth/dev-login"})
+    @DisplayName("이메일 로그인·회원가입과 기본 설정의 dev-login 경로는 없다")
+    void removedOrDisabledEndpoints(String path) throws Exception {
+        int status = mvc.perform(post(path)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(Map.of("email", email, "password", "wrongpassword"))))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"))
-                .andReturn().getResponse().getContentAsString();
+                        .content("{\"email\":\"a@b.c\",\"password\":\"password123\",\"memberId\":1}"))
+                .andReturn().getResponse().getStatus();
 
-        String noSuchUser = mvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(om.writeValueAsString(Map.of("email", uniqueEmail(), "password", "password123"))))
-                .andExpect(status().isUnauthorized())
-                .andReturn().getResponse().getContentAsString();
-
-        assertThat(wrongPw).isEqualTo(noSuchUser);
+        assertThat(status).isBetween(400, 499);
     }
+
+    // --- JWT 인증 ---
 
     @Test
     @DisplayName("인증 없이 보호된 API 를 호출하면 401 이다")
@@ -144,12 +189,9 @@ class AuthApiTest extends PostgresTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
-    // --- 무효 토큰 처리 ---
-    //
     // JwtAuthFilter 는 서블릿 필터라 GlobalExceptionHandler(@RestControllerAdvice) 의 사정권 밖이다.
     // 필터가 JwtTokenProvider 의 SecurityException 을 그대로 던지면 예외가 필터 체인 밖으로 빠져나가
-    // 401 이 나가지 않는다. (아래 테스트를 수정 전 코드로 돌리면 SecurityException 이 그대로 전파된다.
-    // 서블릿 컨테이너에서는 500 에러 페이지가 된다.)
+    // 401 이 나가지 않는다.
 
     private String signedWith(String secret, Instant issuedAt, Instant expiresAt) {
         return Jwts.builder()
@@ -202,9 +244,8 @@ class AuthApiTest extends PostgresTestSupport {
     @Test
     @DisplayName("유효한 토큰이면 보호된 API 에 접근할 수 있다")
     void validTokenGrantsAccess() throws Exception {
-        String email = uniqueEmail();
-        signUp(email, "password123");
-        Long memberId = memberRepository.findByEmail(email).orElseThrow().getId();
+        Long memberId = memberRepository.save(
+                new Member(AuthProvider.DEV, "jwt-" + UUID.randomUUID(), "tester")).getId();
 
         mvc.perform(get("/api/v1/schedules")
                         .param("date", "2026-09-08")

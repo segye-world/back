@@ -18,17 +18,10 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping("/signup")
-    // ERD의 Member 테이블(email, password) 기준으로 회원을 생성한다.
-    public ApiResponse<Void> signUp(@RequestBody @Valid AuthDtos.SignUpRequest req) {
-        authService.signUp(req.getEmail(), req.getPassword());
-        return ApiResponse.ok();
-    }
-
-    @PostMapping("/login")
-    // 로그인 성공 시 memberId를 subject로 가지는 JWT Access Token을 발급한다.
-    public ApiResponse<AuthDtos.TokenResponse> login(@RequestBody @Valid AuthDtos.LoginRequest req) {
-        String token = authService.login(req.getEmail(), req.getPassword());
-        return ApiResponse.ok(new AuthDtos.TokenResponse(token));
+    @PostMapping("/kakao")
+    // 카카오 토큰을 검증해 회원을 찾거나 만들고, memberId 를 subject 로 가지는 JWT 를 발급한다.
+    public ApiResponse<AuthDtos.TokenResponse> loginWithKakao(@RequestBody @Valid AuthDtos.KakaoLoginRequest req) {
+        AuthService.LoginResult result = authService.loginWithKakao(req.accessToken());
+        return ApiResponse.ok(new AuthDtos.TokenResponse(result.accessToken(), result.isNewMember()));
     }
 }

@@ -5,6 +5,7 @@ import com.segye.account.AccountRecordRepository;
 import com.segye.category.Category;
 import com.segye.category.CategoryRepository;
 import com.segye.category.CategoryType;
+import com.segye.member.AuthProvider;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
 import com.segye.schedule.dto.ScheduleDtos;
@@ -53,7 +54,7 @@ class ScheduleServiceTest extends PostgresTestSupport {
     @BeforeEach
     void setUp() {
         Member member = memberRepository.save(
-                new Member("schedule-" + UUID.randomUUID() + "@example.com", "hash"));
+                new Member(AuthProvider.DEV, "schedule-" + UUID.randomUUID(), "tester"));
         memberId = member.getId();
     }
 
@@ -100,7 +101,7 @@ class ScheduleServiceTest extends PostgresTestSupport {
     void cannotTouchOtherMembersSchedule() {
         Long id = scheduleService.create(memberId, request(7, 9)).id();
         Long otherId = memberRepository.save(
-                new Member("other-" + UUID.randomUUID() + "@example.com", "hash")).getId();
+                new Member(AuthProvider.DEV, "other-" + UUID.randomUUID(), "tester")).getId();
 
         assertThat(scheduleService.listByDate(otherId, LocalDate.of(2026, 9, 8))).isEmpty();
         assertThatThrownBy(() -> scheduleService.delete(otherId, id))
