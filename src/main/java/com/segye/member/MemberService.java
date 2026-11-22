@@ -2,6 +2,7 @@ package com.segye.member;
 
 import com.segye.account.AccountRecordRepository;
 import com.segye.auth.kakao.KakaoClient;
+import com.segye.budget.BudgetRepository;
 import com.segye.schedule.ScheduleRepository;
 import com.segye.todo.TodoRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -14,17 +15,20 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final AccountRecordRepository accountRecordRepository;
+    private final BudgetRepository budgetRepository;
     private final TodoRepository todoRepository;
     private final ScheduleRepository scheduleRepository;
     private final KakaoClient kakaoClient;
 
     public MemberService(MemberRepository memberRepository,
                          AccountRecordRepository accountRecordRepository,
+                         BudgetRepository budgetRepository,
                          TodoRepository todoRepository,
                          ScheduleRepository scheduleRepository,
                          KakaoClient kakaoClient) {
         this.memberRepository = memberRepository;
         this.accountRecordRepository = accountRecordRepository;
+        this.budgetRepository = budgetRepository;
         this.todoRepository = todoRepository;
         this.scheduleRepository = scheduleRepository;
         this.kakaoClient = kakaoClient;
@@ -36,6 +40,7 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new SecurityException("회원이 없습니다."));
         accountRecordRepository.deleteByMember_Id(memberId);
+        budgetRepository.deleteByMember_Id(memberId);
         todoRepository.deleteByMember_Id(memberId);
         scheduleRepository.deleteByMember_Id(memberId);
         memberRepository.delete(member);

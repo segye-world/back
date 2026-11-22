@@ -2,6 +2,8 @@ package com.segye.member;
 
 import com.segye.auth.JwtTokenProvider;
 import com.segye.auth.kakao.KakaoApiException;
+import com.segye.budget.Budget;
+import com.segye.budget.BudgetRepository;
 import com.segye.support.KakaoMockTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,9 @@ class MemberWithdrawTest extends KakaoMockTestSupport {
     @Autowired
     MemberRepository memberRepository;
 
+    @Autowired
+    BudgetRepository budgetRepository;
+
     private ResultActions withdraw(Member member) throws Exception {
         return mvc.perform(delete("/api/v1/members/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenProvider.createAccessToken(member.getId())));
@@ -56,6 +61,27 @@ class MemberWithdrawTest extends KakaoMockTestSupport {
         withdraw(member).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
 
         assertThat(memberRepository.findById(member.getId())).isEmpty();
+        verify(kakaoClient).unlink(kakaoId);
+    }
+
+    @Test
+    @DisplayName("회원 탈퇴 시 해당 회원의 월별 예산만 삭제한다")
+    void deletesOnlyWithdrawingMembersBudgets() throws Exception {
+        long kakaoId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+        Member member = kakaoMember(kakaoId);
+        Member otherMember = memberRepository.save(new Member(AuthProvider.DEV, "dev-" + UUID.randomUUID(), "다른 회원"));
+        Budget firstBudget = budgetRepository.save(new Budget(member, 2026, 10, 100_000L));
+        Budget secondBudget = budgetRepository.save(new Budget(member, 2026, 11, 120_000L));
+        Budget otherBudget = budgetRepository.save(new Budget(otherMember, 2026, 10, 150_000L));
+
+        withdraw(member).andExpect(status().isOk()).andExpect(jsonPath("$.success").value(true));
+
+        // 테스트 트랜잭션이 롤백되기 전에 실제 DELETE와 외래 키 검사를 실행한다.
+        memberRepository.flush();
+        assertThat(memberRepository.existsById(member.getId())).isFalse();
+        assertThat(budgetRepository.existsById(firstBudget.getId())).isFalse();
+        assertThat(budgetRepository.existsById(secondBudget.getId())).isFalse();
+        assertThat(budgetRepository.existsById(otherBudget.getId())).isTrue();
         verify(kakaoClient).unlink(kakaoId);
     }
 
