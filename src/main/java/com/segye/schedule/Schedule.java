@@ -38,29 +38,31 @@ public class Schedule {
     @Column(nullable = false)
     private LocalDate date;
 
-    @Column(name = "start_hour", nullable = false)
-    private int startHour;
+    /** 하루 시작(00:00)부터의 분. 0~1439. */
+    @Column(name = "start_minute", nullable = false)
+    private int startMinute;
 
-    @Column(name = "end_hour", nullable = false)
-    private int endHour;
+    /** 하루 시작(00:00)부터의 분. 1~1440 (1440 = 24:00). */
+    @Column(name = "end_minute", nullable = false)
+    private int endMinute;
 
     @Column(name = "color_hex", nullable = false, length = 20)
     private String colorHex;
 
     public Schedule(Member member, String title, LocalDate date,
-                    int startHour, int endHour, String colorHex) {
+                    int startMinute, int endMinute, String colorHex) {
         this.member = member;
         this.title = title;
         this.date = date;
-        this.startHour = startHour;
-        this.endHour = endHour;
+        this.startMinute = startMinute;
+        this.endMinute = endMinute;
         this.colorHex = colorHex;
     }
 
-    public void update(String title, int startHour, int endHour, String colorHex) {
+    public void update(String title, int startMinute, int endMinute, String colorHex) {
         this.title = title;
-        this.startHour = startHour;
-        this.endHour = endHour;
+        this.startMinute = startMinute;
+        this.endMinute = endMinute;
         this.colorHex = colorHex;
     }
 }

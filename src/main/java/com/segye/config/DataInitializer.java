@@ -77,10 +77,11 @@ public class DataInitializer implements ApplicationRunner {
         LocalDate tomorrow = today.plusDays(1);
 
         // schedules
-        Schedule morning  = scheduleRepository.save(new Schedule(m1, "아침 운동",      today,    7, 9,  "#F3A3A4"));
-        Schedule chicken  = scheduleRepository.save(new Schedule(m1, "클릭까스 태릉점", today,   11, 15, "#9DB7EA"));
-        Schedule meeting  = scheduleRepository.save(new Schedule(m1, "내일 회의 준비",  tomorrow,10, 11, "#71B35C"));
-        Schedule bookClub = scheduleRepository.save(new Schedule(m2, "하나 독서 모임",  today,   18, 19, "#FFB24D"));
+        // 시간은 00:00부터의 분 (7 * 60 = 07:00)
+        Schedule morning  = scheduleRepository.save(new Schedule(m1, "아침 운동",      today,    7 * 60,       9 * 60,       "#F3A3A4"));
+        Schedule chicken  = scheduleRepository.save(new Schedule(m1, "클릭까스 태릉점", today,   11 * 60 + 30, 15 * 60,      "#9DB7EA"));
+        Schedule meeting  = scheduleRepository.save(new Schedule(m1, "내일 회의 준비",  tomorrow,10 * 60,      11 * 60,      "#71B35C"));
+        Schedule bookClub = scheduleRepository.save(new Schedule(m2, "하나 독서 모임",  today,   18 * 60,      19 * 60 + 30, "#FFB24D"));
 
         // todos
         todoRepository.save(new Todo(m1, morning, "백준 알고리즘 실버 2문제", today));
