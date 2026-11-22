@@ -52,6 +52,7 @@ class DevLoginTest extends PostgresTestSupport {
                         .content(om.writeValueAsString(Map.of("memberId", memberId))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.isNewMember").value(false))
+                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
 
         String token = om.readTree(body).path("data").path("accessToken").asText();
