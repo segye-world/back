@@ -1,5 +1,6 @@
 package com.segye.todo;
 
+import com.segye.common.DateRange;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
 import com.segye.schedule.Schedule;
@@ -43,6 +44,13 @@ public class TodoService {
     @Transactional(readOnly = true)
     public List<TodoDtos.TodoResponse> listByDate(Long memberId, LocalDate date) {
         return repo.findByMember_IdAndDateOrderByIdAsc(memberId, date)
+                .stream().map(this::toDto).toList();
+    }
+
+    /** 구간 안의 할 일을 날짜, 등록 순으로 돌려준다. */
+    @Transactional(readOnly = true)
+    public List<TodoDtos.TodoResponse> listRange(Long memberId, DateRange range) {
+        return repo.findByMember_IdAndDateBetweenOrderByDateAscIdAsc(memberId, range.from(), range.to())
                 .stream().map(this::toDto).toList();
     }
 

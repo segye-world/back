@@ -1,5 +1,6 @@
 package com.segye.schedule;
 
+import com.segye.common.DateRange;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
 import com.segye.schedule.dto.ScheduleDtos;
@@ -34,6 +35,13 @@ public class ScheduleService {
     @Transactional(readOnly = true)
     public List<ScheduleDtos.ScheduleResponse> listByDate(Long memberId, LocalDate date) {
         return repo.findByMember_IdAndDateOrderByStartMinuteAsc(memberId, date)
+                .stream().map(this::toDto).toList();
+    }
+
+    /** 구간 안의 일정을 날짜, 시작 분 순으로 돌려준다. */
+    @Transactional(readOnly = true)
+    public List<ScheduleDtos.ScheduleResponse> listRange(Long memberId, DateRange range) {
+        return repo.findByMember_IdAndDateBetweenOrderByDateAscStartMinuteAsc(memberId, range.from(), range.to())
                 .stream().map(this::toDto).toList();
     }
 

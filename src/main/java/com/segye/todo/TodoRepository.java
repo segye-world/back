@@ -10,6 +10,8 @@ public interface TodoRepository extends JpaRepository<Todo, Long> {
 
     List<Todo> findByMember_IdAndDateOrderByIdAsc(Long memberId, LocalDate date);
 
+    List<Todo> findByMember_IdAndDateBetweenOrderByDateAscIdAsc(Long memberId, LocalDate from, LocalDate to);
+
     Optional<Todo> findByIdAndMember_Id(Long id, Long memberId);
 
     void deleteByMember_Id(Long memberId);
