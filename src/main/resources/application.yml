@@ -35,3 +35,11 @@ app:
   auth:
     # 카카오 없이 memberId 로 토큰을 받는 개발용 로그인. prod 프로필에서는 이 값과 상관없이 꺼집니다.
     dev-login-enabled: ${DEV_LOGIN_ENABLED:false}
+    # 스토어 심사용 로그인(POST /api/v1/auth/review-login). prod 에서도 켤 수 있습니다.
+    # 아이디·비밀번호 평문은 Play Console "앱 액세스 권한"에만 적고 저장소·이슈·채팅에 올리지 마세요.
+    # 켜면 아이디와 bcrypt 해시가 모두 있어야 부팅됩니다. 해시 만들기: htpasswd -bnBC 10 "" '<비밀번호>' | tr -d ':\n'
+    # (docker compose 의 environment 에 넣을 때는 해시의 $ 를 $$ 로 적어야 합니다.)
+    review-login:
+      enabled: ${REVIEW_LOGIN_ENABLED:false}
+      login-id: ${REVIEW_LOGIN_ID:}
+      password-hash: ${REVIEW_LOGIN_PASSWORD_HASH:}

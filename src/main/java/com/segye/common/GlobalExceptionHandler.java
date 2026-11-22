@@ -1,6 +1,7 @@
 package com.segye.common;
 
 import com.segye.auth.kakao.KakaoApiException;
+import com.segye.auth.review.ReviewLoginLockedException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +38,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<ApiResponse<Void>> handleSecurity(SecurityException e) {
         return ResponseEntity.status(401).body(ApiResponse.fail("UNAUTHORIZED", e.getMessage()));
+    }
+
+    @ExceptionHandler(ReviewLoginLockedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleReviewLoginLocked(ReviewLoginLockedException e) {
+        return ResponseEntity.status(429).body(ApiResponse.fail("TOO_MANY_REQUESTS", e.getMessage()));
     }
 
     // 사용자의 토큰 문제가 아니라 카카오 쪽 장애이므로 401 이 아니라 502 로 구분한다.

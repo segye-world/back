@@ -14,6 +14,11 @@ public class AuthDtos {
     public record DevLoginRequest(@NotNull Long memberId) {
     }
 
+    // bcrypt 는 72바이트까지만 보므로 비밀번호 길이를 그 아래로 제한한다.
+    public record ReviewLoginRequest(@NotBlank @Size(max = 100) String loginId,
+                                     @NotBlank @Size(max = 64) String password) {
+    }
+
     public record RefreshTokenRequest(@NotBlank @Size(max = 256) String refreshToken) {
     }
 
