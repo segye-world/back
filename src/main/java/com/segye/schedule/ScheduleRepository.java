@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
-    List<Schedule> findByMember_IdAndDateOrderByStartHourAsc(Long memberId, LocalDate date);
+    List<Schedule> findByMember_IdAndDateOrderByStartMinuteAsc(Long memberId, LocalDate date);
 
     Optional<Schedule> findByIdAndMember_Id(Long id, Long memberId);
 

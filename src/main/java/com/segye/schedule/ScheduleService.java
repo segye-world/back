@@ -22,30 +22,26 @@ public class ScheduleService {
     }
 
     public ScheduleDtos.ScheduleResponse create(Long memberId, ScheduleDtos.CreateRequest req) {
-        if (req.startHour() >= req.endHour()) {
-            throw new IllegalArgumentException("시작 시간은 종료 시간보다 빨라야 합니다.");
-        }
+        MinuteRange range = MinuteRange.of(req.startMinute(), req.endMinute(), req.startHour(), req.endHour());
         Member member = memberRepo.findById(memberId)
                 .orElseThrow(() -> new SecurityException("회원이 없습니다."));
         Schedule saved = repo.save(new Schedule(
-                member, req.title(), req.date(), req.startHour(), req.endHour(), req.colorHex()
+                member, req.title(), req.date(), range.start(), range.end(), req.colorHex()
         ));
         return toDto(saved);
     }
 
     @Transactional(readOnly = true)
     public List<ScheduleDtos.ScheduleResponse> listByDate(Long memberId, LocalDate date) {
-        return repo.findByMember_IdAndDateOrderByStartHourAsc(memberId, date)
+        return repo.findByMember_IdAndDateOrderByStartMinuteAsc(memberId, date)
                 .stream().map(this::toDto).toList();
     }
 
     public ScheduleDtos.ScheduleResponse update(Long memberId, Long id, ScheduleDtos.UpdateRequest req) {
-        if (req.startHour() >= req.endHour()) {
-            throw new IllegalArgumentException("시작 시간은 종료 시간보다 빨라야 합니다.");
-        }
+        MinuteRange range = MinuteRange.of(req.startMinute(), req.endMinute(), req.startHour(), req.endHour());
         Schedule schedule = repo.findByIdAndMember_Id(id, memberId)
                 .orElseThrow(() -> new IllegalArgumentException("일정이 없습니다."));
-        schedule.update(req.title(), req.startHour(), req.endHour(), req.colorHex());
+        schedule.update(req.title(), range.start(), range.end(), req.colorHex());
         return toDto(schedule);
     }
 
@@ -58,7 +54,31 @@ public class ScheduleService {
     private ScheduleDtos.ScheduleResponse toDto(Schedule s) {
         return new ScheduleDtos.ScheduleResponse(
                 s.getId(), s.getTitle(), s.getDate(),
-                s.getStartHour(), s.getEndHour(), s.getColorHex()
+                s.getStartMinute(), s.getEndMinute(),
+                s.getStartMinute() / 60, (s.getEndMinute() + 59) / 60,
+                s.getColorHex()
         );
+    }
+
+    /** 요청의 분 값(없으면 시 값)을 검증된 분 범위로 바꾼다. */
+    private record MinuteRange(int start, int end) {
+
+        static MinuteRange of(Integer startMinute, Integer endMinute, Integer startHour, Integer endHour) {
+            MinuteRange range;
+            if (startMinute != null || endMinute != null) {
+                if (startMinute == null || endMinute == null) {
+                    throw new IllegalArgumentException("시작·종료 시간을 모두 입력해 주세요.");
+                }
+                range = new MinuteRange(startMinute, endMinute);
+            } else if (startHour != null && endHour != null) {
+                range = new MinuteRange(startHour * 60, endHour * 60);
+            } else {
+                throw new IllegalArgumentException("시작·종료 시간을 모두 입력해 주세요.");
+            }
+            if (range.start() >= range.end()) {
+                throw new IllegalArgumentException("시작 시간은 종료 시간보다 빨라야 합니다.");
+            }
+            return range;
+        }
     }
 }

@@ -58,48 +58,111 @@ class ScheduleServiceTest extends PostgresTestSupport {
         memberId = member.getId();
     }
 
-    private ScheduleDtos.CreateRequest request(int startHour, int endHour) {
-        return new ScheduleDtos.CreateRequest("아침 운동", LocalDate.of(2026, 9, 8), startHour, endHour, "#F3A3A4");
+    private static final LocalDate DAY = LocalDate.of(2026, 9, 8);
+
+    /** 분 단위 요청 (00:00부터의 분) */
+    private ScheduleDtos.CreateRequest request(int startMinute, int endMinute) {
+        return new ScheduleDtos.CreateRequest("아침 운동", DAY, startMinute, endMinute, null, null, "#F3A3A4");
+    }
+
+    /** 분 단위를 모르는 기존 앱의 시 단위 요청 */
+    private ScheduleDtos.CreateRequest hourRequest(int startHour, int endHour) {
+        return new ScheduleDtos.CreateRequest("아침 운동", DAY, null, null, startHour, endHour, "#F3A3A4");
     }
 
     @Test
-    @DisplayName("정상 범위의 일정은 저장되고 조회된다")
-    void createsSchedule() {
-        ScheduleDtos.ScheduleResponse created = scheduleService.create(memberId, request(7, 9));
+    @DisplayName("분 단위 일정이 그대로 저장되고 조회된다")
+    void createsScheduleInMinutes() {
+        ScheduleDtos.ScheduleResponse created = scheduleService.create(memberId, request(14 * 60 + 30, 16 * 60 + 10));
 
         assertThat(created.id()).isNotNull();
-        assertThat(created.startHour()).isEqualTo(7);
-        assertThat(created.endHour()).isEqualTo(9);
+        assertThat(created.startMinute()).isEqualTo(870);
+        assertThat(created.endMinute()).isEqualTo(970);
 
-        List<ScheduleDtos.ScheduleResponse> found =
-                scheduleService.listByDate(memberId, LocalDate.of(2026, 9, 8));
+        List<ScheduleDtos.ScheduleResponse> found = scheduleService.listByDate(memberId, DAY);
         assertThat(found).extracting(ScheduleDtos.ScheduleResponse::id).containsExactly(created.id());
     }
 
+    @Test
+    @DisplayName("응답의 시 단위 값은 시작은 내림, 종료는 올림한다")
+    void respondsLegacyHoursCoveringTheSchedule() {
+        ScheduleDtos.ScheduleResponse created = scheduleService.create(memberId, request(14 * 60 + 30, 16 * 60 + 10));
+
+        assertThat(created.startHour()).isEqualTo(14);
+        assertThat(created.endHour()).isEqualTo(17);
+    }
+
+    @Test
+    @DisplayName("시 단위로만 보낸 요청은 분으로 바꿔 저장한다")
+    void acceptsLegacyHourRequest() {
+        ScheduleDtos.ScheduleResponse created = scheduleService.create(memberId, hourRequest(7, 24));
+
+        assertThat(created.startMinute()).isEqualTo(7 * 60);
+        assertThat(created.endMinute()).isEqualTo(1440);
+        assertThat(created.startHour()).isEqualTo(7);
+        assertThat(created.endHour()).isEqualTo(24);
+    }
+
+    @Test
+    @DisplayName("같은 날 일정은 시작 분 순서로 조회된다")
+    void listsByStartMinute() {
+        Long later = scheduleService.create(memberId, request(9 * 60 + 40, 10 * 60)).id();
+        Long earlier = scheduleService.create(memberId, request(9 * 60 + 10, 9 * 60 + 30)).id();
+
+        assertThat(scheduleService.listByDate(memberId, DAY))
+                .extracting(ScheduleDtos.ScheduleResponse::id)
+                .containsExactly(earlier, later);
+    }
+
     @ParameterizedTest(name = "start={0}, end={1}")
-    @CsvSource({"9, 9", "10, 9", "23, 1"})
+    @CsvSource({"540, 540", "600, 590", "1380, 60"})
     @DisplayName("시작 시간이 종료 시간보다 늦거나 같으면 생성이 거절된다")
-    void rejectsInvalidHourRangeOnCreate(int startHour, int endHour) {
-        assertThatThrownBy(() -> scheduleService.create(memberId, request(startHour, endHour)))
+    void rejectsInvalidRangeOnCreate(int startMinute, int endMinute) {
+        assertThatThrownBy(() -> scheduleService.create(memberId, request(startMinute, endMinute)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("시작 시간은 종료 시간보다 빨라야 합니다.");
+    }
+
+    @Test
+    @DisplayName("시작·종료 중 하나만 보내면 거절된다")
+    void rejectsMissingTime() {
+        assertThatThrownBy(() -> scheduleService.create(memberId,
+                new ScheduleDtos.CreateRequest("아침 운동", DAY, 420, null, null, null, "#F3A3A4")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("시작·종료 시간을 모두 입력해 주세요.");
+        assertThatThrownBy(() -> scheduleService.create(memberId,
+                new ScheduleDtos.CreateRequest("아침 운동", DAY, null, null, null, null, "#F3A3A4")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("시작·종료 시간을 모두 입력해 주세요.");
     }
 
     @Test
     @DisplayName("시작 시간이 종료 시간보다 늦으면 수정도 거절된다")
-    void rejectsInvalidHourRangeOnUpdate() {
-        Long id = scheduleService.create(memberId, request(7, 9)).id();
+    void rejectsInvalidRangeOnUpdate() {
+        Long id = scheduleService.create(memberId, request(7 * 60, 9 * 60)).id();
 
         assertThatThrownBy(() -> scheduleService.update(memberId, id,
-                new ScheduleDtos.UpdateRequest("수정", 11, 10, "#000000")))
+                new ScheduleDtos.UpdateRequest("수정", 11 * 60, 10 * 60, null, null, "#000000")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("시작 시간은 종료 시간보다 빨라야 합니다.");
+    }
+
+    @Test
+    @DisplayName("분 단위로 수정할 수 있다")
+    void updatesInMinutes() {
+        Long id = scheduleService.create(memberId, request(7 * 60, 9 * 60)).id();
+
+        ScheduleDtos.ScheduleResponse updated = scheduleService.update(memberId, id,
+                new ScheduleDtos.UpdateRequest("수정", 7 * 60 + 15, 8 * 60 + 45, null, null, "#000000"));
+
+        assertThat(updated.startMinute()).isEqualTo(435);
+        assertThat(updated.endMinute()).isEqualTo(525);
     }
 
     @Test
     @DisplayName("다른 회원의 일정은 조회/수정/삭제할 수 없다")
     void cannotTouchOtherMembersSchedule() {
-        Long id = scheduleService.create(memberId, request(7, 9)).id();
+        Long id = scheduleService.create(memberId, request(7 * 60, 9 * 60)).id();
         Long otherId = memberRepository.save(
                 new Member(AuthProvider.DEV, "other-" + UUID.randomUUID(), "tester")).getId();
 
@@ -113,7 +176,7 @@ class ScheduleServiceTest extends PostgresTestSupport {
     void deletingScheduleDisconnectsAccountRecordsInsteadOfLeavingDanglingId() {
         Member member = memberRepository.findById(memberId).orElseThrow();
         Category category = categoryRepository.save(new Category(member, "식비", CategoryType.EXPENSE));
-        Long scheduleId = scheduleService.create(memberId, request(7, 9)).id();
+        Long scheduleId = scheduleService.create(memberId, request(7 * 60, 9 * 60)).id();
         Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow();
 
         AccountRecord record = accountRecordRepository.save(new AccountRecord(
