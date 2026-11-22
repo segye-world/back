@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.segye.auth.kakao.KakaoApiException;
 import com.segye.auth.kakao.KakaoClient.KakaoUser;
 import com.segye.auth.kakao.KakaoClient.TokenInfo;
+import com.segye.category.Category;
+import com.segye.category.CategoryRepository;
+import com.segye.category.CategoryType;
 import com.segye.member.AuthProvider;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
@@ -57,6 +60,9 @@ class AuthApiTest extends KakaoMockTestSupport {
     @Autowired
     MemberRepository memberRepository;
 
+    @Autowired
+    CategoryRepository categoryRepository;
+
     private long randomKakaoId() {
         return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
     }
@@ -95,6 +101,8 @@ class AuthApiTest extends KakaoMockTestSupport {
                 .orElseThrow();
         assertThat(member.getNickname()).isEqualTo("세계");
         assertThat(memberIdFrom(result)).isEqualTo(member.getId());
+        assertThat(categoryRepository.findByMember_IdAndTypeOrderById(member.getId(), CategoryType.INCOME))
+                .extracting(Category::getName).containsExactly("월급", "현금", "부수입");
     }
 
     @Test
@@ -103,6 +111,8 @@ class AuthApiTest extends KakaoMockTestSupport {
         long kakaoId = randomKakaoId();
         givenKakaoUser("token-1", kakaoId, "세계");
         Long firstId = memberIdFrom(kakaoLogin("token-1").andExpect(status().isOk()));
+        Category removedDefault = categoryRepository.findByMember_IdOrderById(firstId).getFirst();
+        categoryRepository.delete(removedDefault);
 
         givenKakaoUser("token-2", kakaoId, "새 닉네임");
         ResultActions second = kakaoLogin("token-2")
@@ -111,6 +121,8 @@ class AuthApiTest extends KakaoMockTestSupport {
 
         assertThat(memberIdFrom(second)).isEqualTo(firstId);
         assertThat(memberRepository.findById(firstId).orElseThrow().getNickname()).isEqualTo("새 닉네임");
+        assertThat(categoryRepository.findByMember_IdOrderById(firstId))
+                .extracting(Category::getName).containsExactly("현금", "부수입");
     }
 
     @Test

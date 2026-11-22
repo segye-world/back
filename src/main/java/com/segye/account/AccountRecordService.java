@@ -45,10 +45,10 @@ public class AccountRecordService {
 
     public AccountRecordDtos.AccountRecordResponse create(Long memberId, AccountRecordDtos.CreateRequest req) {
         Member member = memberRepo.findById(memberId).orElseThrow(() -> new SecurityException("회원이 없습니다."));
-        Category category = categoryRepo.findById(req.categoryId()).orElseThrow(() -> new IllegalArgumentException("카테고리가 없습니다."));
+        Category category = findCategory(memberId, req.categoryId());
 
         Schedule schedule = findSchedule(memberId, req.scheduleId());
-        Category sourceCategory = findSourceCategory(req.sourceCategoryId());
+        Category sourceCategory = findSourceCategory(memberId, req.sourceCategoryId());
 
         AccountRecord saved = repo.save(new AccountRecord(member, category, sourceCategory,
                 req.amount(), req.transactionTime(), schedule, req.memo()));
@@ -166,11 +166,10 @@ public class AccountRecordService {
         AccountRecord ar = repo.findByIdAndMember_Id(id, memberId)
                 .orElseThrow(() -> new IllegalArgumentException("내역이 없습니다."));
 
-        Category category = categoryRepo.findById(req.categoryId())
-                .orElseThrow(() -> new IllegalArgumentException("카테고리가 없습니다."));
+        Category category = findCategory(memberId, req.categoryId());
 
         Schedule schedule = findSchedule(memberId, req.scheduleId());
-        Category sourceCategory = findSourceCategory(req.sourceCategoryId());
+        Category sourceCategory = findSourceCategory(memberId, req.sourceCategoryId());
 
         ar.update(category, sourceCategory, req.amount(), req.transactionTime(), schedule, req.memo());
         return toDto(ar);
@@ -188,10 +187,15 @@ public class AccountRecordService {
                 .orElseThrow(() -> new IllegalArgumentException("연결할 일정이 없습니다."));
     }
 
+    private Category findCategory(Long memberId, Long categoryId) {
+        return categoryRepo.findByIdAndMember_Id(categoryId, memberId)
+                .orElseThrow(() -> new IllegalArgumentException("카테고리가 없습니다."));
+    }
+
     // 수입원은 반드시 INCOME 카테고리여야 한다(지출 카테고리를 수입원으로 잘못 넣는 것을 막는다).
-    private Category findSourceCategory(Long sourceCategoryId) {
+    private Category findSourceCategory(Long memberId, Long sourceCategoryId) {
         if (sourceCategoryId == null) return null;
-        Category category = categoryRepo.findById(sourceCategoryId)
+        Category category = categoryRepo.findByIdAndMember_Id(sourceCategoryId, memberId)
                 .orElseThrow(() -> new IllegalArgumentException("수입원이 없습니다."));
         if (category.getType() != CategoryType.INCOME) {
             throw new IllegalArgumentException("수입원 카테고리가 아닙니다.");

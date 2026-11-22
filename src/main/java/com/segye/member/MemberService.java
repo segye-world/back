@@ -3,6 +3,8 @@ package com.segye.member;
 import com.segye.account.AccountRecordRepository;
 import com.segye.auth.kakao.KakaoClient;
 import com.segye.budget.BudgetRepository;
+import com.segye.category.CategoryRepository;
+import com.segye.category.CategoryService;
 import com.segye.schedule.ScheduleRepository;
 import com.segye.todo.TodoRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,8 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final AccountRecordRepository accountRecordRepository;
     private final BudgetRepository budgetRepository;
+    private final CategoryRepository categoryRepository;
+    private final CategoryService categoryService;
     private final TodoRepository todoRepository;
     private final ScheduleRepository scheduleRepository;
     private final KakaoClient kakaoClient;
@@ -23,15 +27,26 @@ public class MemberService {
     public MemberService(MemberRepository memberRepository,
                          AccountRecordRepository accountRecordRepository,
                          BudgetRepository budgetRepository,
+                         CategoryRepository categoryRepository,
+                         CategoryService categoryService,
                          TodoRepository todoRepository,
                          ScheduleRepository scheduleRepository,
                          KakaoClient kakaoClient) {
         this.memberRepository = memberRepository;
         this.accountRecordRepository = accountRecordRepository;
         this.budgetRepository = budgetRepository;
+        this.categoryRepository = categoryRepository;
+        this.categoryService = categoryService;
         this.todoRepository = todoRepository;
         this.scheduleRepository = scheduleRepository;
         this.kakaoClient = kakaoClient;
+    }
+
+    @Transactional
+    public Member registerKakaoMember(String providerId, String nickname) {
+        Member member = memberRepository.saveAndFlush(new Member(AuthProvider.KAKAO, providerId, nickname));
+        categoryService.createDefaultCategories(member);
+        return member;
     }
 
     /** 회원과 회원의 데이터를 지우고, 지운 회원을 돌려준다. 카카오 연결 끊기는 커밋 뒤에 따로 한다. */
@@ -40,6 +55,7 @@ public class MemberService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new SecurityException("회원이 없습니다."));
         accountRecordRepository.deleteByMember_Id(memberId);
+        categoryRepository.deleteByMember_Id(memberId);
         budgetRepository.deleteByMember_Id(memberId);
         todoRepository.deleteByMember_Id(memberId);
         scheduleRepository.deleteByMember_Id(memberId);
