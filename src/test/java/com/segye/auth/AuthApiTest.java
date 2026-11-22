@@ -1,6 +1,7 @@
 package com.segye.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.segye.auth.dto.AuthDtos.SessionTokens;
 import com.segye.auth.kakao.KakaoApiException;
 import com.segye.auth.kakao.KakaoClient.KakaoUser;
 import com.segye.auth.kakao.KakaoClient.TokenInfo;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -62,6 +65,9 @@ class AuthApiTest extends KakaoMockTestSupport {
 
     @Autowired
     CategoryRepository categoryRepository;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     private long randomKakaoId() {
         return ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
@@ -95,6 +101,7 @@ class AuthApiTest extends KakaoMockTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.isNewMember").value(true));
 
         Member member = memberRepository.findByProviderAndProviderId(AuthProvider.KAKAO, String.valueOf(kakaoId))
@@ -176,6 +183,83 @@ class AuthApiTest extends KakaoMockTestSupport {
         kakaoLogin(" ")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+    }
+
+    private SessionTokens sessionTokens(ResultActions result) throws Exception {
+        var data = om.readTree(result.andReturn().getResponse().getContentAsString()).path("data");
+        return new SessionTokens(data.path("accessToken").asText(), data.path("refreshToken").asText());
+    }
+
+    private SessionTokens newKakaoSession() throws Exception {
+        givenKakaoUser("session-login", randomKakaoId(), "세션 테스트");
+        return sessionTokens(kakaoLogin("session-login").andExpect(status().isOk()));
+    }
+
+    private ResultActions sessionRequest(String action, String refreshToken) throws Exception {
+        return mvc.perform(post("/api/v1/auth/" + action)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("refreshToken", refreshToken))));
+    }
+
+    @Test
+    @DisplayName("갱신 시 토큰을 교체하고, 이전 토큰이 재사용되면 해당 세션을 폐기한다")
+    void rotatesRefreshTokenAndRevokesSessionOnReuse() throws Exception {
+        SessionTokens first = newKakaoSession();
+        SessionTokens otherDevice = sessionTokens(kakaoLogin("session-login").andExpect(status().isOk()));
+        SessionTokens next = sessionTokens(sessionRequest("refresh", first.refreshToken()).andExpect(status().isOk()));
+
+        assertThat(next.refreshToken()).isNotBlank().isNotEqualTo(first.refreshToken());
+        assertThat(next.accessToken()).isNotEqualTo(first.accessToken());
+        assertThat(tokenProvider.validateAndGetMemberId(next.accessToken()))
+                .isEqualTo(tokenProvider.validateAndGetMemberId(first.accessToken()));
+
+        sessionRequest("refresh", first.refreshToken()).andExpect(status().isUnauthorized());
+        sessionRequest("refresh", next.refreshToken()).andExpect(status().isUnauthorized());
+        expectUnauthorizedWith(next.accessToken());
+        sessionRequest("refresh", otherDevice.refreshToken()).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("로그아웃은 해당 세션의 토큰을 폐기하고 반복 호출을 허용한다")
+    void logoutRevokesSession() throws Exception {
+        SessionTokens tokens = newKakaoSession();
+
+        sessionRequest("logout", tokens.refreshToken()).andExpect(status().isOk());
+        sessionRequest("logout", tokens.refreshToken()).andExpect(status().isOk());
+        sessionRequest("refresh", tokens.refreshToken()).andExpect(status().isUnauthorized());
+        expectUnauthorizedWith(tokens.accessToken());
+    }
+
+    @Test
+    @DisplayName("만료됐거나 존재하지 않는 리프레시 토큰은 거절한다")
+    void rejectsExpiredAndUnknownRefreshTokens() throws Exception {
+        SessionTokens tokens = newKakaoSession();
+        var sessionId = tokenProvider.validate(tokens.accessToken()).sessionId();
+        jdbc.update("UPDATE auth_session SET expires_at = CURRENT_TIMESTAMP - INTERVAL '1 second' WHERE id = ?", sessionId);
+
+        sessionRequest("refresh", tokens.refreshToken()).andExpect(status().isUnauthorized());
+        sessionRequest("refresh", "unknown-token").andExpect(status().isUnauthorized());
+        expectUnauthorizedWith(tokens.accessToken());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auth_refresh_token WHERE session_id = ?", Long.class, sessionId))
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("탈퇴하면 모든 기기의 세션과 탈퇴 전에 발급된 JWT를 사용할 수 없다")
+    void withdrawalRevokesAllMemberSessions() throws Exception {
+        SessionTokens first = newKakaoSession();
+        SessionTokens second = sessionTokens(kakaoLogin("session-login").andExpect(status().isOk()));
+        Long memberId = tokenProvider.validateAndGetMemberId(first.accessToken());
+        String legacyAccessToken = tokenProvider.createAccessToken(memberId);
+
+        mvc.perform(delete("/api/v1/members/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + first.accessToken()))
+                .andExpect(status().isOk());
+        memberRepository.flush();
+
+        sessionRequest("refresh", first.refreshToken()).andExpect(status().isUnauthorized());
+        sessionRequest("refresh", second.refreshToken()).andExpect(status().isUnauthorized());
+        expectUnauthorizedWith(second.accessToken());
+        expectUnauthorizedWith(legacyAccessToken);
     }
 
     @ParameterizedTest(name = "{0}")

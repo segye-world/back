@@ -28,11 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class DevLoginController {
 
     private final MemberRepository memberRepository;
-    private final JwtTokenProvider tokenProvider;
+    private final AuthSessionService sessionService;
 
-    public DevLoginController(MemberRepository memberRepository, JwtTokenProvider tokenProvider) {
+    public DevLoginController(MemberRepository memberRepository, AuthSessionService sessionService) {
         this.memberRepository = memberRepository;
-        this.tokenProvider = tokenProvider;
+        this.sessionService = sessionService;
     }
 
     @PostConstruct
@@ -45,6 +45,7 @@ public class DevLoginController {
         Long memberId = memberRepository.findById(req.memberId())
                 .orElseThrow(() -> new IllegalArgumentException("회원이 없습니다."))
                 .getId();
-        return ApiResponse.ok(new AuthDtos.TokenResponse(tokenProvider.createAccessToken(memberId), false));
+        var tokens = sessionService.create(memberId);
+        return ApiResponse.ok(new AuthDtos.TokenResponse(tokens.accessToken(), tokens.refreshToken(), false));
     }
 }

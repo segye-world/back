@@ -1,5 +1,6 @@
 package com.segye.auth;
 
+import com.segye.member.MemberRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,9 +16,14 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
+    private final MemberRepository memberRepository;
+    private final AuthSessionRepository sessions;
 
-    public JwtAuthFilter(JwtTokenProvider tokenProvider) {
+    public JwtAuthFilter(JwtTokenProvider tokenProvider, MemberRepository memberRepository,
+                         AuthSessionRepository sessions) {
         this.tokenProvider = tokenProvider;
+        this.memberRepository = memberRepository;
+        this.sessions = sessions;
     }
 
     @Override
@@ -28,7 +34,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             try {
-                Long memberId = tokenProvider.validateAndGetMemberId(token);
+                JwtTokenProvider.AccessToken access = tokenProvider.validate(token);
+                Long memberId = access.memberId();
+                boolean active = access.sessionId() == null
+                        ? memberRepository.existsById(memberId) // 기존 앱에 발급된 JWT도 만료 전까지 허용한다.
+                        : sessions.isActive(access.sessionId(), memberId);
+                if (!active) {
+                    throw new SecurityException("유효하지 않은 세션입니다.");
+                }
 
                 // principal에 memberId만 넣어도 MVP에는 충분
                 UsernamePasswordAuthenticationToken auth =

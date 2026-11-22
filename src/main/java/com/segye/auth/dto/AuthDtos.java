@@ -3,6 +3,7 @@ package com.segye.auth.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class AuthDtos {
 
@@ -13,8 +14,15 @@ public class AuthDtos {
     public record DevLoginRequest(@NotNull Long memberId) {
     }
 
+    public record RefreshTokenRequest(@NotBlank @Size(max = 256) String refreshToken) {
+    }
+
+    public record SessionTokens(String accessToken, String refreshToken) {
+    }
+
     // isNewMember 는 첫 가입 여부다. 앱은 이 값으로 약관 동의·온보딩을 띄울지 정한다.
     public record TokenResponse(String accessToken,
+                                String refreshToken,
                                 @JsonProperty("isNewMember") boolean isNewMember) {
     }
 }

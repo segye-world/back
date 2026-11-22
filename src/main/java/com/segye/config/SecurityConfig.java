@@ -1,7 +1,9 @@
 package com.segye.config;
 
+import com.segye.auth.AuthSessionRepository;
 import com.segye.auth.JwtAuthFilter;
 import com.segye.auth.JwtTokenProvider;
+import com.segye.member.MemberRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -18,7 +20,8 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JwtTokenProvider tokenProvider) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtTokenProvider tokenProvider,
+                                           MemberRepository members, AuthSessionRepository sessions) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(req -> {
@@ -39,7 +42,7 @@ public class SecurityConfig {
                 // 앱이 토큰 만료를 알아챌 수 있도록 미인증 요청은 401 로 명시한다.
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
 
-        http.addFilterBefore(new JwtAuthFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(new JwtAuthFilter(tokenProvider, members, sessions), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }
