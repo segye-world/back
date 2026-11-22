@@ -79,7 +79,7 @@ public class AuthService {
 
         try {
             return transactions.execute(status ->
-                    issueSession(memberService.registerKakaoMember(providerId, kakaoUser.nickname()), true));
+                    issueSession(memberService.registerMember(AuthProvider.KAKAO, providerId, kakaoUser.nickname()), true));
         } catch (DataIntegrityViolationException e) {
             // 첫 로그인 요청이 동시에 두 번 들어와 다른 요청이 먼저 가입시킨 경우다.
             Member member = memberRepository.findByProviderAndProviderId(AuthProvider.KAKAO, providerId)
