@@ -263,8 +263,9 @@ class AuthApiTest extends KakaoMockTestSupport {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"/api/v1/auth/login", "/api/v1/auth/signup", "/api/v1/auth/dev-login"})
-    @DisplayName("이메일 로그인·회원가입과 기본 설정의 dev-login 경로는 없다")
+    @ValueSource(strings = {"/api/v1/auth/login", "/api/v1/auth/signup", "/api/v1/auth/dev-login",
+            "/api/v1/auth/review-login"})
+    @DisplayName("이메일 로그인·회원가입과 기본 설정의 dev-login·review-login 경로는 없다")
     void removedOrDisabledEndpoints(String path) throws Exception {
         int status = mvc.perform(post(path)
                         .contentType(MediaType.APPLICATION_JSON)
