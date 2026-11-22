@@ -10,6 +10,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     List<Schedule> findByMember_IdAndDateOrderByStartMinuteAsc(Long memberId, LocalDate date);
 
+    List<Schedule> findByMember_IdAndDateBetweenOrderByDateAscStartMinuteAsc(Long memberId, LocalDate from, LocalDate to);
+
     Optional<Schedule> findByIdAndMember_Id(Long id, Long memberId);
 
     void deleteByMember_Id(Long memberId);

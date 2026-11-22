@@ -1,6 +1,7 @@
 package com.segye.schedule;
 
 import com.segye.common.ApiResponse;
+import com.segye.common.DateRange;
 import com.segye.schedule.dto.ScheduleDtos;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -43,12 +44,18 @@ public class ScheduleController {
         return ApiResponse.ok(service.create(memberId(auth), req));
     }
 
+    /**
+     * {@code ?date=} 로 하루, 또는 {@code ?from=&to=} 로 최대 31일 구간(양끝 포함)을 조회한다.
+     * 구간 조회 결과는 날짜, 시작 분 순으로 정렬된다.
+     */
     @GetMapping
-    public ApiResponse<List<ScheduleDtos.ScheduleResponse>> listByDate(
+    public ApiResponse<List<ScheduleDtos.ScheduleResponse>> list(
             Authentication auth,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
-        return ApiResponse.ok(service.listByDate(memberId(auth), date));
+        return ApiResponse.ok(service.listRange(memberId(auth), DateRange.of(date, from, to)));
     }
 
     @PutMapping("/{id}")
