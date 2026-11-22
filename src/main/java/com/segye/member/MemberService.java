@@ -42,9 +42,10 @@ public class MemberService {
         this.kakaoClient = kakaoClient;
     }
 
+    /** 회원을 만들고 기본 카테고리를 넣는다. 같은 (provider, providerId) 가 이미 있으면 유니크 제약 위반이 난다. */
     @Transactional
-    public Member registerKakaoMember(String providerId, String nickname) {
-        Member member = memberRepository.saveAndFlush(new Member(AuthProvider.KAKAO, providerId, nickname));
+    public Member registerMember(AuthProvider provider, String providerId, String nickname) {
+        Member member = memberRepository.saveAndFlush(new Member(provider, providerId, nickname));
         categoryService.createDefaultCategories(member);
         return member;
     }
