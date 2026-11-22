@@ -4,6 +4,11 @@ import com.segye.auth.JwtTokenProvider;
 import com.segye.auth.kakao.KakaoApiException;
 import com.segye.budget.Budget;
 import com.segye.budget.BudgetRepository;
+import com.segye.account.AccountRecord;
+import com.segye.account.AccountRecordRepository;
+import com.segye.category.Category;
+import com.segye.category.CategoryRepository;
+import com.segye.category.CategoryType;
 import com.segye.support.KakaoMockTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -42,6 +48,12 @@ class MemberWithdrawTest extends KakaoMockTestSupport {
 
     @Autowired
     BudgetRepository budgetRepository;
+
+    @Autowired
+    CategoryRepository categoryRepository;
+
+    @Autowired
+    AccountRecordRepository accountRecordRepository;
 
     private ResultActions withdraw(Member member) throws Exception {
         return mvc.perform(delete("/api/v1/members/me")
@@ -83,6 +95,25 @@ class MemberWithdrawTest extends KakaoMockTestSupport {
         assertThat(budgetRepository.existsById(secondBudget.getId())).isFalse();
         assertThat(budgetRepository.existsById(otherBudget.getId())).isTrue();
         verify(kakaoClient).unlink(kakaoId);
+    }
+
+    @Test
+    @DisplayName("내 거래와 카테고리는 삭제하고 다른 회원의 카테고리는 보존한다")
+    void deletesOnlyWithdrawingMembersCategories() throws Exception {
+        Member member = kakaoMember(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
+        Member other = memberRepository.save(new Member(AuthProvider.DEV, "dev-" + UUID.randomUUID(), "다른 회원"));
+        Category expense = categoryRepository.save(new Category(member, "식비", CategoryType.EXPENSE));
+        Category source = categoryRepository.save(new Category(member, "현금", CategoryType.INCOME));
+        Category otherCategory = categoryRepository.save(new Category(other, "식비", CategoryType.EXPENSE));
+        AccountRecord record = accountRecordRepository.save(
+                new AccountRecord(member, expense, source, -1000L, LocalDateTime.now(), null, null));
+
+        withdraw(member).andExpect(status().isOk());
+        memberRepository.flush();
+
+        assertThat(accountRecordRepository.existsById(record.getId())).isFalse();
+        assertThat(categoryRepository.findByMember_IdOrderById(member.getId())).isEmpty();
+        assertThat(categoryRepository.existsById(otherCategory.getId())).isTrue();
     }
 
     @Test

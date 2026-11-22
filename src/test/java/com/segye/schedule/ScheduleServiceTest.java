@@ -112,7 +112,7 @@ class ScheduleServiceTest extends PostgresTestSupport {
     @DisplayName("일정을 삭제해도 연결된 수입·지출 기록은 남고 연결만 끊어진다")
     void deletingScheduleDisconnectsAccountRecordsInsteadOfLeavingDanglingId() {
         Member member = memberRepository.findById(memberId).orElseThrow();
-        Category category = categoryRepository.save(new Category("식비", CategoryType.EXPENSE));
+        Category category = categoryRepository.save(new Category(member, "식비", CategoryType.EXPENSE));
         Long scheduleId = scheduleService.create(memberId, request(7, 9)).id();
         Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow();
 

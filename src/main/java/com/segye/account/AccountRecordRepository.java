@@ -20,5 +20,7 @@ public interface AccountRecordRepository extends JpaRepository<AccountRecord, Lo
 
     Optional<AccountRecord> findByIdAndMember_Id(Long id, Long memberId);
 
+    boolean existsByCategory_Id(Long categoryId);
+
     void deleteByMember_Id(Long memberId);
 }

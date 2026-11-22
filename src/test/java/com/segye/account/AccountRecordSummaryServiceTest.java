@@ -45,10 +45,11 @@ class AccountRecordSummaryServiceTest extends PostgresTestSupport {
 
     @BeforeEach
     void setUp() {
-        memberId = memberRepository.save(new Member(AuthProvider.DEV, "summary-" + UUID.randomUUID(), "tester")).getId();
-        foodCategoryId = categoryRepository.save(new Category("식비", CategoryType.EXPENSE)).getId();
-        transportCategoryId = categoryRepository.save(new Category("교통", CategoryType.EXPENSE)).getId();
-        salaryCategoryId = categoryRepository.save(new Category("급여", CategoryType.INCOME)).getId();
+        Member member = memberRepository.save(new Member(AuthProvider.DEV, "summary-" + UUID.randomUUID(), "tester"));
+        memberId = member.getId();
+        foodCategoryId = categoryRepository.save(new Category(member, "식비", CategoryType.EXPENSE)).getId();
+        transportCategoryId = categoryRepository.save(new Category(member, "교통", CategoryType.EXPENSE)).getId();
+        salaryCategoryId = categoryRepository.save(new Category(member, "급여", CategoryType.INCOME)).getId();
     }
 
     private void record(Long categoryId, long amount, LocalDateTime time) {

@@ -4,6 +4,7 @@ import com.segye.account.AccountRecord;
 import com.segye.account.AccountRecordRepository;
 import com.segye.category.Category;
 import com.segye.category.CategoryRepository;
+import com.segye.category.CategoryService;
 import com.segye.category.CategoryType;
 import com.segye.member.AuthProvider;
 import com.segye.member.Member;
@@ -20,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 // 목 데이터이므로 운영 DB에는 넣지 않습니다.
 @Profile("!prod")
@@ -28,17 +32,20 @@ public class DataInitializer implements ApplicationRunner {
 
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
+    private final CategoryService categoryService;
     private final ScheduleRepository scheduleRepository;
     private final TodoRepository todoRepository;
     private final AccountRecordRepository accountRecordRepository;
 
     public DataInitializer(MemberRepository memberRepository,
                            CategoryRepository categoryRepository,
+                           CategoryService categoryService,
                            ScheduleRepository scheduleRepository,
                            TodoRepository todoRepository,
                            AccountRecordRepository accountRecordRepository) {
         this.memberRepository = memberRepository;
         this.categoryRepository = categoryRepository;
+        this.categoryService = categoryService;
         this.scheduleRepository = scheduleRepository;
         this.todoRepository = todoRepository;
         this.accountRecordRepository = accountRecordRepository;
@@ -53,18 +60,18 @@ public class DataInitializer implements ApplicationRunner {
         Member m1 = memberRepository.save(new Member(AuthProvider.DEV, "mock-segye", "세계"));
         Member m2 = memberRepository.save(new Member(AuthProvider.DEV, "mock-hana", "하나"));
 
-        // 카테고리(전역 — 엔티티에 회원 FK 없음).
-        // 수입원(지출 수단 겸용)과 지출 카테고리를 모두 여기서 만든다.
-        Category catSalary  = categoryRepository.save(new Category("월급",       CategoryType.INCOME));
-        Category catCash    = categoryRepository.save(new Category("현금",       CategoryType.INCOME));
-        Category catSide    = categoryRepository.save(new Category("부수입",     CategoryType.INCOME));
-        Category catCard    = categoryRepository.save(new Category("신용카드",   CategoryType.INCOME));
-        Category catFood    = categoryRepository.save(new Category("식비",       CategoryType.EXPENSE));
-        Category catTransit = categoryRepository.save(new Category("교통비",     CategoryType.EXPENSE));
-        Category catShop    = categoryRepository.save(new Category("쇼핑",       CategoryType.EXPENSE));
-        Category catCulture = categoryRepository.save(new Category("문화생활",   CategoryType.EXPENSE));
-        Category catCafe    = categoryRepository.save(new Category("카페",       CategoryType.EXPENSE));
-        Category catHanaFood= categoryRepository.save(new Category("하나 식비",  CategoryType.EXPENSE));
+        Map<String, Category> segyeIncome = defaultIncomeByName(m1);
+        Map<String, Category> hanaIncome = defaultIncomeByName(m2);
+        Category catSalary  = segyeIncome.get("월급");
+        Category catCash    = segyeIncome.get("현금");
+        Category catSide    = segyeIncome.get("부수입");
+        Category catCard    = categoryRepository.save(new Category(m1, "신용카드",  CategoryType.INCOME));
+        Category catFood    = categoryRepository.save(new Category(m1, "식비",     CategoryType.EXPENSE));
+        Category catTransit = categoryRepository.save(new Category(m1, "교통비",   CategoryType.EXPENSE));
+        Category catShop    = categoryRepository.save(new Category(m1, "쇼핑",     CategoryType.EXPENSE));
+        Category catCulture = categoryRepository.save(new Category(m1, "문화생활", CategoryType.EXPENSE));
+        Category catCafe    = categoryRepository.save(new Category(m1, "카페",     CategoryType.EXPENSE));
+        Category catHanaFood= categoryRepository.save(new Category(m2, "하나 식비", CategoryType.EXPENSE));
 
         LocalDate today    = LocalDate.now();
         LocalDate tomorrow = today.plusDays(1);
@@ -95,7 +102,12 @@ public class DataInitializer implements ApplicationRunner {
         accountRecordRepository.save(new AccountRecord(m1, catCulture, catCard, -42000L,  t.minusDays(3).withHour(20).withMinute(0),  null, null));
         accountRecordRepository.save(new AccountRecord(m1, catSide,    null,    120000L,  t.minusDays(5).withHour(18).withMinute(0),  null, null));
         accountRecordRepository.save(new AccountRecord(m1, catFood,    catCash, -18500L,  t.minusDays(8).withHour(13).withMinute(5),  null, null));
-        accountRecordRepository.save(new AccountRecord(m2, catHanaFood,catCash, -24000L,  t.withHour(18).withMinute(10), bookClub, null));
-        accountRecordRepository.save(new AccountRecord(m2, catSalary,  null,    320000L,  t.withHour(10).withMinute(0),  null, null));
+        accountRecordRepository.save(new AccountRecord(m2, catHanaFood, hanaIncome.get("현금"), -24000L, t.withHour(18).withMinute(10), bookClub, null));
+        accountRecordRepository.save(new AccountRecord(m2, hanaIncome.get("월급"), null, 320000L, t.withHour(10).withMinute(0), null, null));
+    }
+
+    private Map<String, Category> defaultIncomeByName(Member member) {
+        return categoryService.createDefaultCategories(member).stream()
+                .collect(Collectors.toMap(Category::getName, Function.identity()));
     }
 }

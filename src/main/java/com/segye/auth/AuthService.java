@@ -5,6 +5,7 @@ import com.segye.auth.kakao.KakaoProperties;
 import com.segye.member.AuthProvider;
 import com.segye.member.Member;
 import com.segye.member.MemberRepository;
+import com.segye.member.MemberService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -19,15 +20,18 @@ public class AuthService {
     private static final String KAKAO_AUTH_FAILED = "카카오 인증에 실패했습니다. 다시 로그인해주세요.";
 
     private final MemberRepository memberRepository;
+    private final MemberService memberService;
     private final JwtTokenProvider tokenProvider;
     private final KakaoClient kakaoClient;
     private final KakaoProperties kakaoProperties;
 
     public AuthService(MemberRepository memberRepository,
+                       MemberService memberService,
                        JwtTokenProvider tokenProvider,
                        KakaoClient kakaoClient,
                        KakaoProperties kakaoProperties) {
         this.memberRepository = memberRepository;
+        this.memberService = memberService;
         this.tokenProvider = tokenProvider;
         this.kakaoClient = kakaoClient;
         this.kakaoProperties = kakaoProperties;
@@ -37,7 +41,6 @@ public class AuthService {
     }
 
     // 카카오 API 호출이 DB 트랜잭션을 붙잡지 않도록 메서드 전체를 트랜잭션으로 묶지 않는다.
-    // 조회·저장은 리포지토리 메서드 단위 트랜잭션으로 충분하다.
     public LoginResult loginWithKakao(String kakaoAccessToken) {
         Long expectedAppId = kakaoProperties.getAppId();
         if (expectedAppId == null) {
@@ -73,8 +76,7 @@ public class AuthService {
         }
 
         try {
-            Member created = memberRepository.saveAndFlush(
-                    new Member(AuthProvider.KAKAO, providerId, kakaoUser.nickname()));
+            Member created = memberService.registerKakaoMember(providerId, kakaoUser.nickname());
             return new LoginResult(tokenProvider.createAccessToken(created.getId()), true);
         } catch (DataIntegrityViolationException e) {
             // 첫 로그인 요청이 동시에 두 번 들어와 다른 요청이 먼저 가입시킨 경우다.

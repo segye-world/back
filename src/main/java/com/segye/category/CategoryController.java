@@ -3,6 +3,7 @@ package com.segye.category;
 import com.segye.category.dto.CategoryDtos;
 import com.segye.common.ApiResponse;
 import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,24 +27,27 @@ public class CategoryController {
     }
 
     @GetMapping
-    public ApiResponse<List<CategoryDtos.CategoryResponse>> list(@RequestParam(required = false) CategoryType type) {
-        return ApiResponse.ok(service.list(type));
+    public ApiResponse<List<CategoryDtos.CategoryResponse>> list(@AuthenticationPrincipal Long memberId,
+                                                                 @RequestParam(required = false) CategoryType type) {
+        return ApiResponse.ok(service.list(memberId, type));
     }
 
     @PostMapping
-    public ApiResponse<CategoryDtos.CategoryResponse> create(@RequestBody @Valid CategoryDtos.UpsertRequest req) {
-        return ApiResponse.ok(service.create(req));
+    public ApiResponse<CategoryDtos.CategoryResponse> create(@AuthenticationPrincipal Long memberId,
+                                                            @RequestBody @Valid CategoryDtos.UpsertRequest req) {
+        return ApiResponse.ok(service.create(memberId, req));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<CategoryDtos.CategoryResponse> update(@PathVariable Long id,
+    public ApiResponse<CategoryDtos.CategoryResponse> update(@AuthenticationPrincipal Long memberId,
+                                                            @PathVariable Long id,
                                                             @RequestBody @Valid CategoryDtos.UpsertRequest req) {
-        return ApiResponse.ok(service.update(id, req));
+        return ApiResponse.ok(service.update(memberId, id, req));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        service.delete(id);
+    public ApiResponse<Void> delete(@AuthenticationPrincipal Long memberId, @PathVariable Long id) {
+        service.delete(memberId, id);
         return ApiResponse.ok();
     }
 }
